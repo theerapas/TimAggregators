@@ -5,6 +5,8 @@ from rdkit.Chem import Descriptors
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.impute import SimpleImputer
+import joblib
 import os
 
 # Step 1: Data Ingestion (ETL)
@@ -73,30 +75,29 @@ dataset = dataset.drop('NAME', axis=1)
 dataset = pd.merge(dataset, excipients_df, left_on='EXCIPIENT', right_on='NAME', how='left')
 dataset = dataset.drop('NAME', axis=1)
 
-# Check for missing values before training
-initial_len = len(dataset)
-dataset = dataset.dropna()
-print(f"Dropped {initial_len - len(dataset)} rows due to RDKit feature extraction failures.")
-print(f"Final dataset shape for training: {dataset.shape}")
-
 # Prepare features (X) and target (y)
 X = dataset.drop(['DRUG', 'EXCIPIENT', 'CLASS'], axis=1)
 y = dataset['CLASS']
+
+# Handle missing values using SimpleImputer
+print("Imputing missing RDKit features...")
+imputer = SimpleImputer(strategy='mean')
+X_imputed = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
+print(f"Final dataset shape for training: {X_imputed.shape}")
 
 # Step 4: Model Training and Validation
 print("\nTraining Random Forest model...")
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X_imputed, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# Use class_weight='balanced_subsample' to handle the severe class imbalance
+# Use class_weight='balanced' to handle the severe class imbalance and 1000 trees as in the SI
 rf_model = RandomForestClassifier(
-    n_estimators=200, 
+    n_estimators=1000, 
     random_state=42, 
-    class_weight='balanced_subsample',
-    max_depth=10,
-    min_samples_split=5
+    class_weight='balanced',
+    n_jobs=-1
 )
 rf_model.fit(X_train, y_train)
 
@@ -115,9 +116,10 @@ print(f"Precision: {precision:.4f}")
 print(f"Recall:    {recall:.4f}")
 print("=" * 30 + "\n")
 
-print("Data preparation and training complete!")
+# Save the model and imputer
+joblib.dump(rf_model, 'nanoparticle_rf_model.pkl')
+joblib.dump(imputer, 'nanoparticle_imputer.pkl')
+print("Model saved as 'nanoparticle_rf_model.pkl'")
+print("Imputer saved as 'nanoparticle_imputer.pkl'")
 
-# Code to save the model for later use (optional):
-# import joblib
-# joblib.dump(rf_model, 'nanoparticle_rf_model.pkl')
-# print("Model saved as 'nanoparticle_rf_model.pkl'")
+# Gotta need better features extraction
