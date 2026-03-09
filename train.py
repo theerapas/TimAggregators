@@ -86,9 +86,18 @@ y = dataset['CLASS']
 # Step 4: Model Training and Validation
 print("\nTraining Random Forest model...")
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
-rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+# Use class_weight='balanced_subsample' to handle the severe class imbalance
+rf_model = RandomForestClassifier(
+    n_estimators=200, 
+    random_state=42, 
+    class_weight='balanced_subsample',
+    max_depth=10,
+    min_samples_split=5
+)
 rf_model.fit(X_train, y_train)
 
 # Evaluate
