@@ -1,112 +1,188 @@
-import pandas as pd
-import numpy as np
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-import joblib
 import os
-import itertools
+import math
+import joblib
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
+from rdkit import Chem
+from rdkit.Chem import Descriptors, rdFingerprintGenerator
 
-print("Loading models...")
-rf_model = joblib.load('nanoparticle_rf_model.pkl')
-imputer = joblib.load('nanoparticle_imputer.pkl')
+# Config
+MODEL_PATH = "nanoparticle_rf_model.pkl"
+DATA_DIR = "data"
 
-data_dir = "data"
+DRUG_FILE = os.path.join(DATA_DIR, "drugbank_selfaggs_smiles.tsv")
+EXCIPIENT_FILE = os.path.join(DATA_DIR, "gras_iig.tsv")
+
+OUTPUT_FILE = "predicted_nanoparticle_candidates.csv"
+
+# Practical screening threshold
+# Use 0.2 for discovery-oriented screening
+# Use 0.5 for paper-style hard classification
+THRESHOLD = 0.5
+
+# Number of drugs processed at once to avoid huge memory use
+DRUG_BLOCK_SIZE = 8
+
+# Load model
+print("Loading model...")
+rf_model = joblib.load(MODEL_PATH)
+
+# Feature setup
+descriptor_funcs = [func for _, func in Descriptors._descList]
+morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=4, fpSize=2048)
+
+
+def get_mol_features(smiles: str) -> np.ndarray | None:
+    """
+    Returns:
+        2048-bit Morgan fingerprint + RDKit descriptors
+    Returns None if SMILES is invalid.
+    """
+    if pd.isna(smiles) or not isinstance(smiles, str) or not smiles.strip():
+        return None
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+
+    fp = morgan_gen.GetFingerprint(mol)
+    fp_features = np.array(list(fp), dtype=np.float32)
+
+    desc_features = []
+    for func in descriptor_funcs:
+        try:
+            v = func(mol)
+            if isinstance(v, float) and math.isnan(v):
+                v = 0.0
+            desc_features.append(float(v))
+        except Exception:
+            desc_features.append(0.0)
+
+    desc_features = np.array(desc_features, dtype=np.float32)
+    return np.concatenate([fp_features, desc_features])
+
+
 print("Loading candidate data...")
-drugs_df = pd.read_csv(os.path.join(data_dir, "drugbank_selfaggs_smiles.tsv"), sep='\t')
-excipients_df = pd.read_csv(os.path.join(data_dir, "gras_iig.tsv"), sep='\t')
+drugs_df = pd.read_csv(DRUG_FILE, sep="\t")
+excipients_df = pd.read_csv(EXCIPIENT_FILE, sep="\t")
 
-def get_rdkit_features(smiles):
-    if pd.isna(smiles) or not isinstance(smiles, str):
-        return [np.nan] * len(Descriptors._descList)
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            return [np.nan] * len(Descriptors._descList)
-        return [func(mol) for _, func in Descriptors._descList]
-    except Exception:
-        return [np.nan] * len(Descriptors._descList)
 
-feature_names = [name for name, _ in Descriptors._descList]
+def find_name_column(df: pd.DataFrame, preferred=("NAME")) -> str:
+    for col in preferred:
+        if col in df.columns:
+            return col
+    return df.columns[0]
 
-# Only calculate features for unique smiles to save time
-print(f"Calculating features for {len(drugs_df)} drugs...")
-drug_feats = np.array([get_rdkit_features(s) for s in tqdm(drugs_df['SMILES'])])
 
-print(f"Calculating features for {len(excipients_df)} excipients...")
-exc_feats = np.array([get_rdkit_features(s) for s in tqdm(excipients_df['SMILES'])])
+def find_smiles_column(df: pd.DataFrame, preferred=("SMILES")) -> str:
+    for col in preferred:
+        if col in df.columns:
+            return col
+    # fallback: choose the first column whose values look most like SMILES strings
+    for col in df.columns:
+        sample = df[col].dropna().astype(str).head(20)
+        if sample.empty:
+            continue
+        valid_count = sum(Chem.MolFromSmiles(x) is not None for x in sample)
+        if valid_count >= max(3, len(sample) // 2):
+            return col
+    raise ValueError(f"Could not detect SMILES column in columns: {list(df.columns)}")
 
-drug_names = drugs_df['NAME'].values
-exc_names = excipients_df['NAME'].values
 
-print("Running inference in batches...")
-batch_size = 50000
+drug_name_col = find_name_column(drugs_df)
+drug_smiles_col = find_smiles_column(drugs_df)
+
+exc_name_col = find_name_column(excipients_df)
+exc_smiles_col = find_smiles_column(excipients_df)
+
+
+print(f"Calculating features for {len(drugs_df)} candidate drugs...")
+drug_names = []
+drug_features = []
+
+for _, row in tqdm(drugs_df.iterrows(), total=len(drugs_df)):
+    name = row[drug_name_col]
+    smiles = row[drug_smiles_col]
+    feats = get_mol_features(smiles)
+    if feats is not None:
+        drug_names.append(name)
+        drug_features.append(feats)
+
+drug_names = np.array(drug_names, dtype=object)
+drug_features = np.vstack(drug_features).astype(np.float32)
+
+print(f"Valid candidate drugs: {len(drug_names)}")
+
+print(f"Calculating features for {len(excipients_df)} candidate excipients...")
+exc_names = []
+exc_features = []
+
+for _, row in tqdm(excipients_df.iterrows(), total=len(excipients_df)):
+    name = row[exc_name_col]
+    smiles = row[exc_smiles_col]
+    feats = get_mol_features(smiles)
+    if feats is not None:
+        exc_names.append(name)
+        exc_features.append(feats)
+
+exc_names = np.array(exc_names, dtype=object)
+exc_features = np.vstack(exc_features).astype(np.float32)
+
+print(f"Valid candidate excipients: {len(exc_names)}")
+
 total_pairs = len(drug_names) * len(exc_names)
+print(f"Total candidate pairs to score: {total_pairs:,}")
 
-top_predictions = []
+# Predict in memory-safe blocks
+print("Running inference in blocks...")
+results = []
 
-def process_batch(batch_drug_indices, batch_exc_indices):
-    # Construct the X matrix for this batch
-    d_feats = drug_feats[batch_drug_indices]
-    e_feats = exc_feats[batch_exc_indices]
-    X_batch = np.hstack([d_feats, e_feats]).astype(np.float32)
-    X_batch[np.isinf(X_batch)] = np.nan
-    
-    # Impute missing values
-    X_batch_imputed = imputer.transform(X_batch)
-    
-    # Predict probabilities (we want class 1)
-    probs = rf_model.predict_proba(X_batch_imputed)[:, 1]
-    
-    # Keep pairs with high probability (e.g. > 0.6)
-    high_prob_mask = probs > 0.6
-    
-    results = []
-    if np.any(high_prob_mask):
-        for idx in np.where(high_prob_mask)[0]:
-            d_idx = batch_drug_indices[idx]
-            e_idx = batch_exc_indices[idx]
-            results.append({
-                'DRUG': drug_names[d_idx],
-                'EXCIPIENT': exc_names[e_idx],
-                'PROBABILITY': probs[idx]
-            })
-    return results
+# For each block of drugs, pair with all excipients
+for start in tqdm(
+    range(0, len(drug_names), DRUG_BLOCK_SIZE),
+    total=math.ceil(len(drug_names) / DRUG_BLOCK_SIZE),
+):
+    end = min(start + DRUG_BLOCK_SIZE, len(drug_names))
 
-all_drug_indices = np.arange(len(drug_names))
-all_exc_indices = np.arange(len(exc_names))
+    drug_block_names = drug_names[start:end]
+    drug_block_feats = drug_features[start:end]  # shape: [D, F]
+    D = drug_block_feats.shape[0]
+    E = exc_features.shape[0]
 
-# Create pairs iterator
-pair_iterator = itertools.product(all_drug_indices, all_exc_indices)
+    # Repeat drug features and tile excipient features
+    # Result pair matrix shape: [D*E, 2F]
+    X_drug = np.repeat(drug_block_feats, E, axis=0)
+    X_exc = np.tile(exc_features, (D, 1))
+    X_block = np.hstack([X_drug, X_exc]).astype(np.float32)
 
-current_batch_d = []
-current_batch_e = []
-processed = 0
+    probs = rf_model.predict_proba(X_block)[:, 1]
+    keep_mask = probs >= THRESHOLD
 
-for d_idx, e_idx in tqdm(pair_iterator, total=total_pairs):
-    current_batch_d.append(d_idx)
-    current_batch_e.append(e_idx)
-    
-    if len(current_batch_d) >= batch_size:
-        batch_results = process_batch(current_batch_d, current_batch_e)
-        top_predictions.extend(batch_results)
-        processed += len(current_batch_d)
-        current_batch_d = []
-        current_batch_e = []
-
-# Process remainder
-if len(current_batch_d) > 0:
-    batch_results = process_batch(current_batch_d, current_batch_e)
-    top_predictions.extend(batch_results)
+    if np.any(keep_mask):
+        kept_indices = np.where(keep_mask)[0]
+        for idx in kept_indices:
+            local_drug_idx = idx // E
+            exc_idx = idx % E
+            results.append(
+                {
+                    "DRUG": drug_block_names[local_drug_idx],
+                    "EXCIPIENT": exc_names[exc_idx],
+                    "PROBABILITY": float(probs[idx]),
+                }
+            )
 
 # Save results
-print("Sorting and saving predictions...")
-results_df = pd.DataFrame(top_predictions)
-if len(results_df) > 0:
-    results_df = results_df.sort_values(by='PROBABILITY', ascending=False)
-    results_df.to_csv("predicted_nanoparticle_candidates.csv", index=False)
-    print(f"Saved {len(results_df)} high-probability candidates to predicted_nanoparticle_candidates.csv")
-    print("\nTop 10 Predictions:")
-    print(results_df.head(10))
+print("Saving predictions...")
+results_df = pd.DataFrame(results)
+
+if not results_df.empty:
+    results_df = results_df.sort_values(by="PROBABILITY", ascending=False).reset_index(
+        drop=True
+    )
+    results_df.to_csv(OUTPUT_FILE, index=False)
+    print(f"Saved {len(results_df):,} candidates to {OUTPUT_FILE}")
+    print("\nTop 10 predictions:")
+    print(results_df.head(10).to_string(index=False))
 else:
-    print("No high probability predictions found.")
+    print(f"No candidates found at threshold {THRESHOLD}. Try lowering the threshold.")
