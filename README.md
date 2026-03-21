@@ -2,10 +2,35 @@
 
 Machine learning pipeline to predict drug–excipient co-aggregation and screen nanoparticle candidates.
 
-Reference: [Computationally guided high-throughput design of self-assembling drug nanoparticles](https://www.nature.com/articles/s41565-021-00870-y)
+---
 
-` Reker et al. Nature Nanotechnology 2021`
-`https://doi.org/10.1038/s41565-021-00870-y`
+## Overview
+
+This project reproduces and extends the computational pipeline from:
+
+**Reker et al., Nature Nanotechnology (2021)**  
+[_Computationally guided high-throughput design of self-assembling drug nanoparticles_ ](https://doi.org/10.1038/s41565-021-00870-y)
+
+The goal is to:
+
+- Train a model to predict co-aggregation between drugs and excipients
+- Perform large-scale screening (~2.1 million pairs)
+- Identify promising nanoparticle candidates for drug delivery
+
+---
+
+## Features
+
+- Morgan fingerprint (radius=4, 2048 bits) + RDKit descriptors
+- Random Forest classifier (500 trees)
+- Evaluation:
+  - 10-fold cross-validation
+  - Leave-One-Drug-Out (LOGO)
+- Large-scale inference:
+  - DrugBank self-aggregating drugs
+  - GRAS/IIG excipients
+  - Approved DrugBank small molecules
+- Screening of ~2.1M candidate pairs
 
 ---
 
@@ -30,6 +55,8 @@ Run inference (~2.1M pairs):
 python inference.py
 ```
 
+---
+
 ## Scripts
 
 ### train.py
@@ -52,22 +79,28 @@ python inference.py
   - candidate excipients
 - Generate all pair combinations
 - Predict probability
-- Filter by threshold
+- Filter by threshold (default = 0.2)
 - Save ranked candidates to `predicted_nanoparticle_candidates.csv`
+
+---
 
 ## Data
 
 Located in `data/`
 
+#### Training data
+
 - `screening_data.tsv`: labeled drug–excipient pairs
-
 - `selected_drugs_smiles.tsv`: training drugs
-
 - `selected_excipients_smiles.tsv`: training excipients
 
-- `drugbank_selfaggs_smiles.tsv`: candidate drugs
+#### Inference data
 
-- `gras_iig.tsv`: candidate excipients
+- `drugbank_selfaggs_smiles.tsv`: candidate drugs
+- `gras_iig.tsv`: GRAS/IIG excipients
+- `drugbank5_approved_names_smiles.tsv`: additional approved small molecules
+
+---
 
 ## Results
 
@@ -92,3 +125,33 @@ Located in `data/`
 - `all_pair_scores.csv`: all ~2.1M pairs scores
 
 - `predicted_nanoparticle_candidates.csv`: all pairs that cross the 0.2 threshold
+
+---
+
+## Notes
+
+- This implementation uses chemical descriptors only (no molecular dynamics features from the original paper)
+- Results may differ from the published study
+- Threshold = 0.2 is used for discovery (higher recall)
+
+## Disclaimer
+
+This repository is an independent implementation inspired by:
+
+`Reker et al., Nature Nanotechnology 2021.`
+
+This project is not the original code from the authors.
+All credit for the original methodology and dataset belongs to the authors.
+
+Please refer to the original publication for scientific details and validation.
+
+### Citation
+
+If you use this work, please cite:
+
+```
+Reker, D., et al. (2021).
+Computationally guided high-throughput design of self-assembling drug nanoparticles.
+Nature Nanotechnology.
+https://doi.org/10.1038/s41565-021-00870-y
+```
