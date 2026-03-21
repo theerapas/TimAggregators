@@ -8,6 +8,3 @@ dependencies:
   - scikit-learn
   - rdkit
   - joblib
-
-# conda env create -f environment.yml
-# conda activate nanoparticle-env
