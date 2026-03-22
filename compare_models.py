@@ -403,22 +403,13 @@ leaderboard = overall_summary.sort_values(
     ascending=[True, True, False, False, False],
 ).reset_index(drop=True)
 
-cv_results.to_csv("compare_model_results/multi_model_cv_all_folds.csv", index=False)
-logo_results.to_csv("compare_model_results/multi_model_logo_all_folds.csv", index=False)
-all_results.to_csv("compare_model_results/multi_model_all_results.csv", index=False)
-cv_summary.to_csv("compare_model_results/multi_model_cv_summary.csv", index=False)
-logo_summary.to_csv("compare_model_results/multi_model_logo_summary.csv", index=False)
+os.makedirs("compare_model_results",exist_ok=True)
 overall_summary.to_csv(
     "compare_model_results/multi_model_overall_summary.csv", index=False
 )
 leaderboard.to_csv("compare_model_results/multi_model_leaderboard.csv", index=False)
 
 print("\nSaved:")
-print("- multi_model_cv_all_folds.csv")
-print("- multi_model_logo_all_folds.csv")
-print("- multi_model_all_results.csv")
-print("- multi_model_cv_summary.csv")
-print("- multi_model_logo_summary.csv")
 print("- multi_model_overall_summary.csv")
 print("- multi_model_leaderboard.csv")
 

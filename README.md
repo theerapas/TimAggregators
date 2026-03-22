@@ -13,7 +13,8 @@ This project reproduces and extends the computational pipeline from:
 
 The goal is to:
 
-- Train a model to predict co-aggregation between drugs and excipients
+- Train and evaluate models to predict co-aggregation between drugs and excipients
+- Compare multiple machine learning models for both cross-validation and unseen-drug generalization
 - Perform large-scale screening (~2.1 million pairs)
 - Identify promising nanoparticle candidates for drug delivery
 
@@ -87,6 +88,11 @@ python inference.py
 - To visualize model performance with 10-fold CV
 - Save the plot to `screening_vs_oof_prediction_heatmaps.png`
 
+### compare_models.py
+
+- Run 10-fold CV and Leave-One-Drug-Out evaulations on different models
+- Save the output in `compare_model_results/`
+
 ---
 
 ## Data
@@ -131,6 +137,11 @@ Located in `data/`
 
 - `predicted_nanoparticle_candidates.csv`: all pairs that cross the 0.2 threshold
 
+#### Model comparison results located in `compare_model_results/`
+
+- `multi_model_overall_summary.csv`
+- `multi_model_leaderboard.csv`
+
 ---
 
 ## Notes
@@ -138,6 +149,10 @@ Located in `data/`
 - This implementation uses chemical descriptors only (no molecular dynamics features from the original paper)
 - Results may differ from the published study
 - Threshold = 0.2 is used for discovery (higher recall)
+- Based on current comparisons:
+  - Random Forest is a strong baseline
+  - ExtraTrees performs well for candidate ranking
+  - Logistic Regression generalizes well in Leave-One-Drug-Out evaluation
 
 ## Disclaimer
 
