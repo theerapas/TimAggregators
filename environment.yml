@@ -8,3 +8,6 @@ dependencies:
   - scikit-learn
   - rdkit
   - joblib
+  - xgboost
+  - lightgbm
+  - catboost

@@ -82,6 +82,11 @@ python inference.py
 - Filter by threshold (default = 0.2)
 - Save ranked candidates to `predicted_nanoparticle_candidates.csv`
 
+### visualize_oof.py
+
+- To visualize model performance with 10-fold CV
+- Save the plot to `screening_vs_oof_prediction_heatmaps.png`
+
 ---
 
 ## Data
