@@ -8,8 +8,10 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem import Descriptors, rdFingerprintGenerator
 
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.model_selection import StratifiedKFold
-from sklearn.impute import SimpleImputer
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 RDLogger.DisableLog("rdApp.*")
 
@@ -19,7 +21,9 @@ SCREENING_FILE = os.path.join(DATA_DIR, "screening_data.tsv")
 DRUGS_FILE = os.path.join(DATA_DIR, "selected_drugs_smiles.tsv")
 EXCIPIENTS_FILE = os.path.join(DATA_DIR, "selected_excipients_smiles.tsv")
 
-OUTPUT_FIG = "screening_vs_oof_prediction_heatmaps.png"
+# Options: "rf", "logreg", "linreg"
+MODEL_TYPE = "logreg"
+OUTPUT_FIG = f"screening_vs_oof_prediction_heatmaps_{MODEL_TYPE}.png"
 
 DRUG_COL = "DRUG"
 EXCIPIENT_COL = "EXCIPIENT"
@@ -124,22 +128,58 @@ dataset = pd.merge(
 X = dataset.drop(columns=["DRUG", "EXCIPIENT", "CLASS"])
 y = dataset["CLASS"].astype(int)
 
+# print(X.abs().max().sort_values(ascending=False).head(20))
+# X = X.clip(lower=-1e20, upper=1e20)
+
 print(f"Final dataset shape for training: {X.shape}")
 
 
-def make_model():
-    return RandomForestClassifier(
-        n_estimators=N_ESTIMATORS,
-        random_state=RANDOM_STATE,
-        n_jobs=-1,
-    )
+def make_model(model_type: str):
+    if model_type == "rf":
+        return RandomForestClassifier(
+            n_estimators=N_ESTIMATORS,
+            random_state=RANDOM_STATE,
+            n_jobs=-1,
+        )
+
+    elif model_type == "logreg":
+        return make_pipeline(
+            StandardScaler(),
+            LogisticRegression(
+                random_state=RANDOM_STATE,
+                max_iter=5000,
+                solver="liblinear",
+                class_weight="balanced",
+            ),
+        )
+
+    elif model_type == "linreg":
+        return make_pipeline(StandardScaler(), LinearRegression())
+
+    else:
+        raise ValueError(f"Unknown MODEL_TYPE: {model_type}")
+
+
+def get_prediction_score(model, X_test, model_type: str):
+    """
+    Return a 0-1 score for visualization.
+    - rf/logreg: true probability of class 1
+    - linreg: regression output clipped to [0, 1]
+    """
+    if model_type in {"rf", "logreg"}:
+        return model.predict_proba(X_test)[:, 1]
+    elif model_type == "linreg":
+        preds = model.predict(X_test)
+        return np.clip(preds, 0.0, 1.0)
+    else:
+        raise ValueError(f"Unknown MODEL_TYPE: {model_type}")
 
 
 # Out-of-fold prediction
-print(f"Running 10-fold out-of-fold prediction...")
+print(f"Running 10-fold out-of-fold prediction with model = {MODEL_TYPE}...")
 
 skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_STATE)
-oof_probs = np.zeros(len(dataset), dtype=float)
+oof_scores = np.zeros(len(dataset), dtype=float)
 
 for fold, (train_idx, test_idx) in enumerate(skf.split(X, y), start=1):
     print(f"  CV fold {fold}/10")
@@ -147,19 +187,14 @@ for fold, (train_idx, test_idx) in enumerate(skf.split(X, y), start=1):
     X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
     y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
 
-    model = make_model()
+    model = make_model(MODEL_TYPE)
     model.fit(X_train, y_train)
 
-    fold_probs = model.predict_proba(X_test)[:, 1]
-    oof_probs[test_idx] = fold_probs
+    fold_scores = get_prediction_score(model, X_test, MODEL_TYPE)
+    oof_scores[test_idx] = fold_scores
 
-dataset["OOF_PRED_CONFIDENCE_PERCENT"] = oof_probs * 100.0
+dataset["OOF_PRED_CONFIDENCE_PERCENT"] = oof_scores * 100.0
 dataset["SCREENING_VALUE"] = dataset[LABEL_COL].astype(float)
-
-# Save OOF table
-# dataset[[DRUG_COL, EXCIPIENT_COL, LABEL_COL, "OOF_PRED_CONFIDENCE_PERCENT"]].to_csv(
-#     "oof_table.csv", index=False
-# )
 
 # Ordering
 drug_order = list(drugs_smiles["NAME"])
@@ -180,9 +215,6 @@ oof_pred_mat = dataset.pivot(
     columns=EXCIPIENT_COL,
     values="OOF_PRED_CONFIDENCE_PERCENT",
 ).reindex(index=drug_order, columns=excipient_order)
-
-# screening_mat.to_csv("screening_heatmap_matrix.csv")
-# oof_pred_mat.to_csv("oof_prediction_heatmap_matrix.csv")
 
 # Plot
 n_drugs = len(drug_order)
@@ -219,11 +251,11 @@ im2 = axes[1].imshow(
     oof_pred_mat.T.values,
     cmap="Greys",
     vmin=0,
-    vmax=60,  # for better contrast
+    vmax=100,  # for better contrast
     aspect="equal",
     interpolation="nearest",
 )
-axes[1].set_title("Out-of-fold model prediction")
+axes[1].set_title(f"Out-of-fold model prediction ({MODEL_TYPE})")
 axes[1].set_xlabel("Drugs")
 axes[1].set_ylabel("Excipients")
 axes[1].set_xticks(np.arange(n_drugs))
@@ -231,7 +263,10 @@ axes[1].set_xticklabels(drug_order, rotation=90, fontsize=7)
 axes[1].set_yticks(np.arange(n_excipients))
 axes[1].set_yticklabels(excipient_order, fontsize=7)
 cbar2 = fig.colorbar(im2, ax=axes[1], fraction=0.03, pad=0.02)
-cbar2.set_label("Confidence (%)")
+if MODEL_TYPE == "linreg":
+    cbar2.set_label("Clipped prediction score (%)")
+else:
+    cbar2.set_label("Confidence (%)")
 
 plt.savefig(OUTPUT_FIG, dpi=300, bbox_inches="tight")
 print(f"Saved figure to {OUTPUT_FIG}")
