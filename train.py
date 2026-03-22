@@ -36,18 +36,13 @@ BEST_THRESHOLD = 0.2
 print("Loading data...")
 
 screening_data = pd.read_csv(SCREENING_FILE, sep="\t")
-if "CLASS" not in screening_data.columns:
-    raise ValueError("Target column 'CLASS' missing from screening_data.tsv")
-
 screening_data = screening_data[["DRUG", "EXCIPIENT", "CLASS"]].dropna(subset=["CLASS"])
-
 drugs_smiles = pd.read_csv(DRUGS_FILE, sep="\t")
 excipients_smiles = pd.read_csv(EXCIPIENTS_FILE, sep="\t")
 
 print(f"Loaded {len(screening_data)} screening records.")
 print(f"Loaded {len(drugs_smiles)} selected drugs.")
 print(f"Loaded {len(excipients_smiles)} selected excipients.")
-
 
 # Feature extraction
 print("Extracting features...")
@@ -96,6 +91,7 @@ def get_mol_features(smiles: str):
     except Exception:
         return [np.nan] * total_len
 
+
 # Build feature tables
 print(f"Processing {len(drugs_smiles)} drugs...")
 drug_feature_df = pd.DataFrame(
@@ -135,6 +131,7 @@ y = dataset["CLASS"].astype(int)
 
 print(f"Final dataset shape for training: {X.shape}")
 
+
 # Metrics
 def compute_metrics(y_true, y_pred, y_prob):
     result = {
@@ -148,12 +145,15 @@ def compute_metrics(y_true, y_pred, y_prob):
     unique_classes = np.unique(y_true)
     if len(unique_classes) < 2:
         result["AUROC"] = np.nan
-        result["AUPRC"] = np.nan if np.sum(y_true) == 0 else average_precision_score(y_true, y_prob)
+        result["AUPRC"] = (
+            np.nan if np.sum(y_true) == 0 else average_precision_score(y_true, y_prob)
+        )
     else:
         result["AUROC"] = roc_auc_score(y_true, y_prob)
         result["AUPRC"] = average_precision_score(y_true, y_prob)
 
     return result
+
 
 # Evaluation
 def make_model():
@@ -162,6 +162,7 @@ def make_model():
         random_state=RANDOM_STATE,
         n_jobs=-1,
     )
+
 
 def evaluate_stratified_cv(X, y, n_splits=10, random_state=RANDOM_STATE):
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
@@ -192,7 +193,9 @@ def evaluate_leave_one_drug_out(X, y, groups):
 
     total_folds = groups.nunique()
 
-    for fold, (train_idx, test_idx) in enumerate(logo.split(X, y, groups=groups), start=1):
+    for fold, (train_idx, test_idx) in enumerate(
+        logo.split(X, y, groups=groups), start=1
+    ):
         held_out_drug = groups.iloc[test_idx].iloc[0]
         print(f"  LOGO fold {fold}/{total_folds} - held out: {held_out_drug}")
 
