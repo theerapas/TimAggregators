@@ -153,3 +153,9 @@ From the visualization in `visualize_model_results/`
   - Logistic Regression is a strong baseline for generalization to unseen drugs.
   - ExtraTrees is the strongest model for ranking candidate pairs in LOGO (highest AUPRC).
   - Random Forest remains the most paper-aligned model and gives strong overall performance.
+
+#### Example plot: `heatmap_cv_extratrees.png`
+
+<p align="center">
+  <img src="visualize_model_results/heatmap_cv_extratrees.png" width="400"/>
+</p>

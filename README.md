@@ -85,7 +85,7 @@ python inference.py
 
 ### compare_models.py
 
-- Run 10-fold CV and Leave-One-Drug-Out evaulations on different models
+- Run 10-fold CV and Leave-One-Drug-Out evaluations on different models
 - Save the output in `compare_model_results/`
 
 ### visualize.py
@@ -116,9 +116,9 @@ Located in `data/`
 
 ## Results
 
-*** **_Full performance analysis is in `summary.md`_** ***
+*** **_Full [performance analysis](summary.md) is in `summary.md`_** ***
 
-#### Random Forest model perfermance results located in `rf_model_results/`
+#### Random Forest model performance results located in `rf_model_results/`
 
 - `cv_results_all_folds_t02.csv`: fold results (threshold 0.2)
 - `cv_results_all_folds_t05.csv`: fold results (threshold 0.5)
@@ -141,7 +141,7 @@ Located in `data/`
 #### Visualization for each model located in `visualize_model_results/`
 
 - `heatmap_{method}_{model}.png`
-- `prob_dist_{method}_{model}.pmg`
+- `prob_dist_{method}_{model}.png`
 ---
 
 ## Notes
