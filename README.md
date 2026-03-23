@@ -83,15 +83,16 @@ python inference.py
 - Filter by threshold (default = 0.2)
 - Save ranked candidates to `predicted_nanoparticle_candidates.csv`
 
-### visualize_oof.py
-
-- To visualize model performance with 10-fold CV
-- Save the plot to `screening_vs_oof_prediction_heatmaps.png`
-
 ### compare_models.py
 
 - Run 10-fold CV and Leave-One-Drug-Out evaulations on different models
 - Save the output in `compare_model_results/`
+
+### visualize.py
+
+- To visualize Random Forest, ExtraTrees, and Logistic Regression model with 10-Fold CV and LOGO
+- Plot the model's confidence as heatmap (`heatmap_{method}_{model}.png`) and their probability distributions (`prob_dist_{method}_{model}.png`).
+- Save the output in `visualize_model_results/`
 
 ---
 
@@ -115,26 +116,21 @@ Located in `data/`
 
 ## Results
 
-#### Model perfermance results located in `model_results/`
+*** **_Full performance analysis is in `summary.md`_** ***
+
+#### Random Forest model perfermance results located in `rf_model_results/`
 
 - `cv_results_all_folds_t02.csv`: fold results (threshold 0.2)
-
 - `cv_results_all_folds_t05.csv`: fold results (threshold 0.5)
-
 - `cv_results_summary_t02.csv`: cross validation results summary (threshold 0.2)
-
 - `cv_results_summary_t05.csv`: cross validation results summary (threshold 0.5)
-
 - `logo_results_*`: leave-one-drug-out results
-
 - `threshold_sweep_results.csv`: threshold comparison
 
-**_Full performance analysis: `summary.md`_**
 
 #### Inference results located in `inference_results/`
 
 - `all_pair_scores.csv`: all ~2.1M pairs scores
-
 - `predicted_nanoparticle_candidates.csv`: all pairs that cross the 0.2 threshold
 
 #### Model comparison results located in `compare_model_results/`
@@ -142,6 +138,10 @@ Located in `data/`
 - `multi_model_overall_summary.csv`
 - `multi_model_leaderboard.csv`
 
+#### Visualization for each model located in `visualize_model_results/`
+
+- `heatmap_{method}_{model}.png`
+- `prob_dist_{method}_{model}.pmg`
 ---
 
 ## Notes

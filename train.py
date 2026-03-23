@@ -234,8 +234,9 @@ print(logo_results.std(numeric_only=True).round(4))
 
 
 # Save evaluation outputs
-cv_results.to_csv("cv_results_all_folds.csv", index=False)
-logo_results.to_csv("logo_results_all_folds.csv", index=False)
+os.makedirs("rf_model_results", exist_ok=True)
+cv_results.to_csv("rf_model_results/cv_results_all_folds.csv", index=False)
+logo_results.to_csv("rf_model_results/logo_results_all_folds.csv", index=False)
 
 cv_summary = pd.DataFrame(
     {
@@ -243,7 +244,7 @@ cv_summary = pd.DataFrame(
         "std": cv_results.std(numeric_only=True),
     }
 ).round(4)
-cv_summary.to_csv("cv_results_summary.csv")
+cv_summary.to_csv("rf_model_results/cv_results_summary.csv")
 
 logo_summary = pd.DataFrame(
     {
@@ -251,7 +252,7 @@ logo_summary = pd.DataFrame(
         "std": logo_results.std(numeric_only=True),
     }
 ).round(4)
-logo_summary.to_csv("logo_results_summary.csv")
+logo_summary.to_csv("rf_model_results/logo_results_summary.csv")
 
 
 # Train final model
@@ -263,7 +264,8 @@ joblib.dump(rf_model, MODEL_OUTPUT)
 print(f"Model saved as '{MODEL_OUTPUT}'")
 
 
-# Optional threshold analysis
+# Threshold analysis
+
 # def metrics_at_threshold(y_true, y_prob, threshold):
 #     y_pred = (y_prob >= threshold).astype(int)
 #     return {
@@ -307,4 +309,4 @@ print(f"Model saved as '{MODEL_OUTPUT}'")
 # threshold_results = evaluate_thresholds_cv(X, y, thresholds)
 # print("\nThreshold sweep results:")
 # print(threshold_results.round(4))
-# threshold_results.to_csv("threshold_sweep_results.csv", index=False)
+# threshold_results.to_csv("rf_model_results/threshold_sweep_results.csv", index=False)

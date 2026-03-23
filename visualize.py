@@ -498,13 +498,13 @@ def main():
         )
 
         cv_prob_summary = summarize_probabilities(y, cv_preds)
-        cv_prob_summary.to_csv(
-            os.path.join(
-                OUTPUT_DIR,
-                f"prob_summary_cv_{model_name.lower()}.csv",
-            ),
-            index=False,
-        )
+        # cv_prob_summary.to_csv(
+        #     os.path.join(
+        #         OUTPUT_DIR,
+        #         f"prob_summary_cv_{model_name.lower()}.csv",
+        #     ),
+        #     index=False,
+        # )
 
         # LOGO predictions
         logo_preds = make_logo_predictions(X, y, groups, builder, model_name)
@@ -543,13 +543,13 @@ def main():
         )
 
         logo_prob_summary = summarize_probabilities(y, logo_preds)
-        logo_prob_summary.to_csv(
-            os.path.join(
-                OUTPUT_DIR,
-                f"prob_summary_logo_{model_name.lower()}.csv",
-            ),
-            index=False,
-        )
+        # logo_prob_summary.to_csv(
+        #     os.path.join(
+        #         OUTPUT_DIR,
+        #         f"prob_summary_logo_{model_name.lower()}.csv",
+        #     ),
+        #     index=False,
+        # )
 
     print("\nDone.")
     print(f"All plots saved in: {OUTPUT_DIR}")

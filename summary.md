@@ -134,8 +134,22 @@ Therefore, this implementation corresponds to **"Only FP" (chemical-only model)*
   - MCC = 0.3691 at threshold 0.5
   - F1 = 0.3366 at threshold 0.5
   - AUROC = 0.8274
-  - This suggests the linear model generalizes better to unseen drugs
+  - This suggests the linear model provides a strong and stable baseline for unseen-drug generalization
 
 - Threshold behavior is consistent across models:
   - Lower threshold (0.2) increases recall and F1
   - Higher threshold (0.5) increases precision and accuracy
+
+# 6. Probability Distribution / Calibration Notes
+From the visualization in `visualize_model_results/`
+
+- All models assign low probabilities to most pairs, consistent with the strong class imbalance in the screening dataset.
+
+- In cross-validation, Random Forest and ExtraTrees produce sharper pair-specific probability patterns, which makes their heatmaps look more similar to the experimental screening matrix.
+
+- Logistic Regression produces smoother and more compressed probabilities, especially in LOGO, so its heatmaps look flatter even though its LOGO MCC, F1, and AUROC are strong.
+
+- Therefore, heatmap appearance should not be interpreted as model quality by itself:
+  - Logistic Regression is a strong baseline for generalization to unseen drugs.
+  - ExtraTrees is the strongest model for ranking candidate pairs in LOGO (highest AUPRC).
+  - Random Forest remains the most paper-aligned model and gives strong overall performance.
