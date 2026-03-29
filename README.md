@@ -47,20 +47,20 @@ conda activate nanoparticle-env
 Train model:
 
 ```bash
-python train.py
+python scripts/train_baseline.py
 ```
 
 Run inference (~2.1M pairs):
 
 ```bash
-python inference.py
+python scripts/run_inference.py
 ```
 
 ---
 
 ## Scripts
 
-### train.py
+### scripts/train_baseline.py
 
 - Load screening dataset
 - Extract molecular features
@@ -72,7 +72,7 @@ python inference.py
   - model (nanoparticle_rf_model.pkl)
   - evaluation results
 
-### inference.py
+### scripts/run_inference.py
 
 - Load trained model
 - Compute features for:
@@ -83,22 +83,22 @@ python inference.py
 - Filter by threshold (default = 0.2)
 - Save ranked candidates to `predicted_nanoparticle_candidates.csv`
 
-### compare_models.py
+### scripts/compare_models.py
 
 - Run 10-fold CV and Leave-One-Drug-Out evaluations on different models
-- Save the output in `compare_model_results/`
+- Save the output in `results/compare_models/`
 
-### visualize.py
+### scripts/visualize_results.py
 
 - To visualize Random Forest, ExtraTrees, and Logistic Regression model with 10-Fold CV and LOGO
 - Plot the model's confidence as heatmap (`heatmap_{method}_{model}.png`) and their probability distributions (`prob_dist_{method}_{model}.png`).
-- Save the output in `visualize_model_results/`
+- Save the output in `results/figures/`
 
 ---
 
 ## Data
 
-Located in `data/`
+Located in `data/raw/`
 
 #### Training data
 
@@ -118,7 +118,7 @@ Located in `data/`
 
 *** **_Full [performance analysis](summary.md) is in `summary.md`_** ***
 
-#### Random Forest model performance results located in `rf_model_results/`
+#### Random Forest model performance results located in `results/random_forest/`
 
 - `cv_results_all_folds_t02.csv`: fold results (threshold 0.2)
 - `cv_results_all_folds_t05.csv`: fold results (threshold 0.5)
@@ -128,17 +128,17 @@ Located in `data/`
 - `threshold_sweep_results.csv`: threshold comparison
 
 
-#### Inference results located in `inference_results/`
+#### Inference results located in `results/inference/`
 
 - `all_pair_scores.csv`: all ~2.1M pairs scores
 - `predicted_nanoparticle_candidates.csv`: all pairs that cross the 0.2 threshold
 
-#### Model comparison results located in `compare_model_results/`
+#### Model comparison results located in `results/compare_models/`
 
 - `multi_model_overall_summary.csv`
 - `multi_model_leaderboard.csv`
 
-#### Visualization for each model located in `visualize_model_results/`
+#### Visualization for each model located in `results/figures/`
 
 - `heatmap_{method}_{model}.png`
 - `prob_dist_{method}_{model}.png`
