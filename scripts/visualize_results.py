@@ -246,6 +246,10 @@ def main():
         screening_data=screening_data,
     )
 
+    X = dataset.drop(columns=[DRUG_COL, EXCIPIENT_COL, LABEL_COL]).copy()
+    y = dataset[LABEL_COL].astype(int).copy()
+    groups = dataset[DRUG_COL].copy()
+
     dataset = dataset.copy()
     dataset["SCREENING_VALUE"] = dataset[LABEL_COL].astype(float)
 
@@ -262,7 +266,7 @@ def main():
         builder = builders[model_name]
 
         # CV predictions
-        cv_preds = make_cv_predictions(X=dataset.drop(columns=[DRUG_COL, EXCIPIENT_COL, LABEL_COL]).copy(), y=dataset[LABEL_COL].astype(int).copy(), builder=builder, model_name=model_name)
+        cv_preds = make_cv_predictions(X=X, y=y, builder=builder, model_name=model_name)
         dataset_cv = dataset.copy()
         dataset_cv["PRED_PERCENT"] = cv_preds * 100.0
 
@@ -292,7 +296,7 @@ def main():
         )
 
         # LOGO predictions
-        logo_preds = make_logo_predictions(X=dataset.drop(columns=[DRUG_COL, EXCIPIENT_COL, LABEL_COL]).copy(), y=dataset[LABEL_COL].astype(int).copy(), groups=dataset[DRUG_COL].copy(), builder=builder, model_name=model_name)
+        logo_preds = make_logo_predictions(X=X, y=y, groups=groups, builder=builder, model_name=model_name)
         dataset_logo = dataset.copy()
         dataset_logo["PRED_PERCENT"] = logo_preds * 100.0
 
