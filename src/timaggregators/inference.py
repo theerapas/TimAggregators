@@ -4,7 +4,7 @@ from typing import Tuple, List
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from .features import FP_SIZE, get_feature_names
+from .features import get_feature_names
 
 def load_feature_table(
     path: str,
@@ -39,11 +39,10 @@ def load_feature_table(
         names.append(name)
         features.append(feats)
 
-    # Need descriptor funcs length, we can get it from features if we have one, otherwise use get_feature_names()
-    desc_names = get_feature_names()
+    feature_names = get_feature_names()
     
     if not features:
-        return np.array([], dtype=object), np.empty((0, len(desc_names)), dtype=np.float64)
+        return np.array([], dtype=object), np.empty((0, len(feature_names)), dtype=np.float64)
 
     return np.array(names, dtype=object), np.asarray(features, dtype=np.float64)
 

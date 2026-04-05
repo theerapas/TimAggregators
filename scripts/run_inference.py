@@ -4,14 +4,11 @@ PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
 import csv
-import os
-from typing import List
 import joblib
 import numpy as np
 import pandas as pd
-from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors
 
+from src.timaggregators.features import get_mol_features
 from src.timaggregators.inference import load_feature_table, score_against_pool
 
 # Config
@@ -35,48 +32,6 @@ THRESHOLD = 0.2
 DRUG_BLOCK_SIZE = 8
 SAVE_ALL_SCORES = True
 
-FLOAT32_MAX = np.nextafter(np.float32(np.finfo(np.float32).max), np.float32(0)).item()
-FLOAT32_MIN = -FLOAT32_MAX
-
-DESCRIPTOR_FUNCS = [func for _, func in Descriptors._descList]
-N_FP_BITS = 2048
-MORGAN_RADIUS = 4
-
-def sanitize_descriptor(value: float) -> float:
-    try:
-        value = float(value)
-    except Exception:
-        return 0.0
-
-    if np.isnan(value):
-        return 0.0
-    if np.isposinf(value) or value > FLOAT32_MAX:
-        return FLOAT32_MAX
-    if np.isneginf(value) or value < FLOAT32_MIN:
-        return FLOAT32_MIN
-    return value
-
-def describe_mol_from_smiles(smiles: str) -> List[float] | None:
-    if pd.isna(smiles) or not isinstance(smiles, str) or not smiles.strip():
-        return None
-
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is None:
-        return None
-
-    fp = AllChem.GetMorganFingerprintAsBitVect(mol, MORGAN_RADIUS, nBits=N_FP_BITS)
-    fp_bits = [float(bit) for bit in fp.ToBitString()]
-
-    desc_values = []
-    for func in DESCRIPTOR_FUNCS:
-        try:
-            raw = func(mol)
-            desc_values.append(np.float32(sanitize_descriptor(raw)).item())
-        except Exception:
-            desc_values.append(np.float32(0.0).item())
-
-    return fp_bits + desc_values
-
 def load_training_name_set() -> set[str]:
     selected_drugs_df = pd.read_csv(SELECTED_DRUGS_FILE, sep="\t")
     selected_excipients_df = pd.read_csv(SELECTED_EXCIPIENTS_FILE, sep="\t")
@@ -98,7 +53,7 @@ drug_names, drug_features = load_feature_table(
     name_col="NAME",
     smiles_col="SMILES",
     desc="Self-aggregating drugs",
-    describe_func=describe_mol_from_smiles,
+    describe_func=get_mol_features,
 )
 print(f"Valid self-aggregating drugs: {len(drug_names):,}")
 
@@ -108,7 +63,7 @@ gras_names, gras_features = load_feature_table(
     name_col="NAME",
     smiles_col="SMILES",
     desc="GRAS/IIG molecules",
-    describe_func=describe_mol_from_smiles,
+    describe_func=get_mol_features,
 )
 print(f"Valid GRAS/IIG molecules: {len(gras_names):,}")
 
@@ -119,7 +74,7 @@ approved_names, approved_features = load_feature_table(
     smiles_col="SMILES",
     exclude_names=training_names,
     desc="Approved DrugBank molecules",
-    describe_func=describe_mol_from_smiles,
+    describe_func=get_mol_features,
 )
 print(f"Valid approved DrugBank molecules after exclusion: {len(approved_names):,}")
 
