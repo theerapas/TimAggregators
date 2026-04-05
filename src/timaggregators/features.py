@@ -6,15 +6,34 @@ from rdkit.Chem import Descriptors, rdFingerprintGenerator
 FP_RADIUS = 4
 FP_SIZE = 2048
 
+FLOAT32_MAX = np.nextafter(np.float32(np.finfo(np.float32).max), np.float32(0)).item()
+FLOAT32_MIN = -FLOAT32_MAX
+MORGAN_GEN = rdFingerprintGenerator.GetMorganGenerator(radius=FP_RADIUS, fpSize=FP_SIZE)
+
 def get_feature_names():
     descriptor_funcs = [func for _, func in Descriptors._descList]
     fp_feature_names = [f"fp_{i}" for i in range(FP_SIZE)]
     desc_feature_names = [name for name, _ in Descriptors._descList]
     return fp_feature_names + desc_feature_names
 
+def sanitize_value(v):
+    try:
+        v = float(v)
+    except Exception:
+        return 0.0
+
+    if np.isnan(v):
+        return 0.0
+    if np.isposinf(v) or v > FLOAT32_MAX:
+        return FLOAT32_MAX
+    if np.isneginf(v) or v < FLOAT32_MIN:
+        return FLOAT32_MIN
+    return v
+
 def get_mol_features(smiles: str, radius=FP_RADIUS, fp_size=FP_SIZE):
     descriptor_funcs = [func for _, func in Descriptors._descList]
     total_len = fp_size + len(descriptor_funcs)
+
     try:
         if pd.isna(smiles) or not isinstance(smiles, str) or not smiles.strip():
             return [np.nan] * total_len
@@ -23,23 +42,28 @@ def get_mol_features(smiles: str, radius=FP_RADIUS, fp_size=FP_SIZE):
         if mol is None:
             return [np.nan] * total_len
 
-        morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=fp_size)
-        fp = morgan_gen.GetFingerprint(mol)
+        fp = MORGAN_GEN.GetFingerprint(mol)
         fp_features = list(fp)
 
         desc_features = []
         for func in descriptor_funcs:
             try:
-                v = float(func(mol))
-                if np.isnan(v) or np.isinf(v):
-                    v = 0.0
+                v = sanitize_value(func(mol))
                 desc_features.append(v)
             except Exception:
                 desc_features.append(0.0)
 
         features = np.array(fp_features + desc_features, dtype=np.float64)
-        features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
+        features = np.nan_to_num(
+            features,
+            nan=0.0,
+            posinf=FLOAT32_MAX,
+            neginf=FLOAT32_MIN,
+        )
+        features = np.clip(features, FLOAT32_MIN, FLOAT32_MAX)
+
         return features.tolist()
+
     except Exception:
         return [np.nan] * total_len
 
