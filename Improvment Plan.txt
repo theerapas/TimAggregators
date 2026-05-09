@@ -1,38 +1,35 @@
-Stage A — Baseline
-A0: Morgan + RDKit + RF + no imbalance
+Stage A: Baseline
+A0: Morgan + RDKit + RF, no imbalance handling
 
-Stage B — Imbalance
-B1: A0 + class weight
-B2: A0 + random oversampling
-B3: A0 + SMOTE
-B4: A0 + threshold tuning only
+Stage B: Imbalance Handling
+B1: Class weight
+B2: Random oversampling
+B3: SMOTE / SMOTENC / cautious synthetic sampling
+B4: Threshold tuning only
+B5: Class weight + threshold tuning
+Pick top 1-2 methods based mainly on LOGO AUPRC/MCC.
 
-Pick best B*.
+Stage C: Representations
+Using top imbalance method(s):
+C1: Morgan only
+C2: RDKit descriptors only
+C3: Morgan + RDKit
+C4: eos2lm8
+C5: ChemBERTa
+C6: Morgan + eos2lm8
+C7: Morgan + ChemBERTa
+C8: Morgan + RDKit + eos2lm8
+C9: Morgan + RDKit + ChemBERTa
 
-Stage C — New representations
-
-Using best B*:
-C1: Morgan + RDKit
-C2: eos2lm8
-C3: ChemBERTa
-C4: Morgan + eos2lm8
-C5: Morgan + ChemBERTa
-C6: Morgan + RDKit + eos2lm8
-C7: Morgan + RDKit + ChemBERTa
-
-Pick best C*.
-
-Stage D — 3D
-
-Using best B*:
+Stage D: 3D / Optional Advanced Features
 D1: Morgan + RDKit + 3D descriptors
-D2: eos2lm8 + 3D
-D3: best C* + 3D
+D2: best embedding + 3D
+D3: best overall 2D feature set + 3D
 
-Stage E — Model comparison
-
-Using best feature set:
+Stage E: Model Comparison
+Using best feature/imbalance setup:
 E1: Logistic Regression
 E2: Random Forest
 E3: ExtraTrees
-E4: XGBoost/LightGBM
+E4: XGBoost / LightGBM
+E5: calibrated versions if probability quality matters
