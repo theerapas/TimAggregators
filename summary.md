@@ -141,7 +141,7 @@ Therefore, this implementation corresponds to **"Only FP" (chemical-only model)*
   - Higher threshold (0.5) increases precision and accuracy
 
 # 6. Probability Distribution / Calibration Notes
-From the visualization in `visualize_model_results/`
+From the visualization in `results/figures/`
 
 - All models assign low probabilities to most pairs, consistent with the strong class imbalance in the screening dataset.
 
@@ -157,5 +157,5 @@ From the visualization in `visualize_model_results/`
 #### Example plot: `heatmap_cv_extratrees.png`
 
 <p align="center">
-  <img src="visualize_model_results/heatmap_cv_extratrees.png" width="400"/>
+  <img src="results/figures/heatmap_cv_extratrees.png" width="400"/>
 </p>
