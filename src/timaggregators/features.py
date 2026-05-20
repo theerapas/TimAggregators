@@ -9,12 +9,39 @@ FP_SIZE = 2048
 FLOAT32_MAX = np.nextafter(np.float32(np.finfo(np.float32).max), np.float32(0)).item()
 FLOAT32_MIN = -FLOAT32_MAX
 MORGAN_GEN = rdFingerprintGenerator.GetMorganGenerator(radius=FP_RADIUS, fpSize=FP_SIZE)
+DEFAULT_COMPONENTS = ("morgan", "rdkit")
 
-def get_feature_names():
-    descriptor_funcs = [func for _, func in Descriptors._descList]
-    fp_feature_names = [f"fp_{i}" for i in range(FP_SIZE)]
-    desc_feature_names = [name for name, _ in Descriptors._descList]
-    return fp_feature_names + desc_feature_names
+
+def normalize_components(components=None):
+    if components is None:
+        components = DEFAULT_COMPONENTS
+    if isinstance(components, str):
+        components = (components,)
+
+    components = tuple(components)
+    valid_components = {"morgan", "rdkit"}
+    unknown = sorted(set(components) - valid_components)
+    if unknown:
+        raise ValueError(f"Unknown molecular feature component(s): {unknown}")
+    return components
+
+
+def get_morgan_feature_names(fp_size=FP_SIZE):
+    return [f"fp_{i}" for i in range(fp_size)]
+
+
+def get_rdkit_descriptor_names():
+    return [name for name, _ in Descriptors._descList]
+
+
+def get_feature_names(components=None):
+    feature_names = []
+    for component in normalize_components(components):
+        if component == "morgan":
+            feature_names.extend(get_morgan_feature_names())
+        elif component == "rdkit":
+            feature_names.extend(get_rdkit_descriptor_names())
+    return feature_names
 
 def sanitize_value(v):
     try:
@@ -30,9 +57,14 @@ def sanitize_value(v):
         return FLOAT32_MIN
     return v
 
-def get_mol_features(smiles: str, radius=FP_RADIUS, fp_size=FP_SIZE):
+def get_mol_features(smiles: str, radius=FP_RADIUS, fp_size=FP_SIZE, components=None):
+    components = normalize_components(components)
     descriptor_funcs = [func for _, func in Descriptors._descList]
-    total_len = fp_size + len(descriptor_funcs)
+    total_len = 0
+    if "morgan" in components:
+        total_len += fp_size
+    if "rdkit" in components:
+        total_len += len(descriptor_funcs)
 
     try:
         if pd.isna(smiles) or not isinstance(smiles, str) or not smiles.strip():
@@ -42,18 +74,22 @@ def get_mol_features(smiles: str, radius=FP_RADIUS, fp_size=FP_SIZE):
         if mol is None:
             return [np.nan] * total_len
 
-        fp = MORGAN_GEN.GetFingerprint(mol)
-        fp_features = list(fp)
+        feature_blocks = []
+        if "morgan" in components:
+            fp = MORGAN_GEN.GetFingerprint(mol)
+            feature_blocks.extend(list(fp))
 
-        desc_features = []
-        for func in descriptor_funcs:
-            try:
-                v = sanitize_value(func(mol))
-                desc_features.append(v)
-            except Exception:
-                desc_features.append(0.0)
+        if "rdkit" in components:
+            desc_features = []
+            for func in descriptor_funcs:
+                try:
+                    v = sanitize_value(func(mol))
+                    desc_features.append(v)
+                except Exception:
+                    desc_features.append(0.0)
+            feature_blocks.extend(desc_features)
 
-        features = np.array(fp_features + desc_features, dtype=np.float64)
+        features = np.array(feature_blocks, dtype=np.float64)
         features = np.nan_to_num(
             features,
             nan=0.0,
@@ -71,13 +107,15 @@ def build_features(
     drugs_smiles: pd.DataFrame,
     excipients_smiles: pd.DataFrame,
     screening_data: pd.DataFrame,
+    components=None,
 ):
     print("Extracting features...")
-    single_feature_names = get_feature_names()
+    components = normalize_components(components)
+    single_feature_names = get_feature_names(components)
 
     print(f"Processing {len(drugs_smiles)} drugs...")
     drug_feature_df = pd.DataFrame(
-        drugs_smiles["SMILES"].apply(get_mol_features).tolist(),
+        drugs_smiles["SMILES"].apply(lambda smiles: get_mol_features(smiles, components=components)).tolist(),
         columns=[f"Drug_{name}" for name in single_feature_names],
     )
     if "NAME" in drugs_smiles.columns:
@@ -87,7 +125,7 @@ def build_features(
 
     print(f"Processing {len(excipients_smiles)} excipients...")
     excipient_feature_df = pd.DataFrame(
-        excipients_smiles["SMILES"].apply(get_mol_features).tolist(),
+        excipients_smiles["SMILES"].apply(lambda smiles: get_mol_features(smiles, components=components)).tolist(),
         columns=[f"Exc_{name}" for name in single_feature_names],
     )
     if "NAME" in excipients_smiles.columns:

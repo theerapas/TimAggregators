@@ -129,3 +129,105 @@ evaluation structure:
 - AUPRC and MCC as primary metrics
 - F1, precision, and recall as secondary operating-point metrics
 
+## Stage C: Representations
+
+Stage C compares molecular representations while keeping the selected Stage B
+setups fixed:
+
+1. B4: no imbalance training + threshold tuning
+2. B5: class weight + threshold tuning
+
+The Stage C runner is:
+
+```bash
+python scripts/compare_representations.py
+```
+
+Current built-in representations:
+
+| Stage | Representation |
+| --- | --- |
+| C1 | Morgan only |
+| C2 | RDKit descriptors only |
+| C3 | Morgan + RDKit |
+| C4 | eos2lm8 |
+| C5 | ChemBERTa |
+| C6 | Morgan + eos2lm8 |
+| C7 | Morgan + ChemBERTa |
+| C8 | Morgan + RDKit + eos2lm8 |
+| C9 | Morgan + RDKit + ChemBERTa |
+
+<!-- C1-C3 run from the existing SMILES data. C4-C9 require external embedding
+tables and are skipped unless the corresponding files are provided:
+
+```bash
+python scripts/compare_representations.py \
+  --eos2lm8-file data/processed/eos2lm8_embeddings.csv \
+  --chemberta-file data/processed/chemberta_embeddings.csv
+```
+
+Embedding files should be CSV or TSV files with a molecule key column named
+`NAME` by default, plus numeric embedding columns. Use `--embedding-key-col` if
+the key column has a different name.
+
+Results are written to `results/representations/`:
+
+- `representation_all_folds.csv`
+- `representation_summary.csv`
+- `representation_leaderboard.csv`
+- `representation_skipped.csv`, when embedding-dependent stages are skipped -->
+
+## Stage C Partial Result: C1-C3
+
+Stage C is not complete yet because the embedding-based representations
+C4-C9 have not been evaluated. However, the first representation comparison
+was run for the two original paper feature types:
+
+- C1: Morgan fingerprint only
+- C2: RDKit descriptors only
+- C3: Morgan fingerprint + RDKit descriptors
+
+This comparison is especially important because the original paper reported
+that combining fingerprint and descriptor features performed better than either
+feature family alone. In this reproduced pipeline, using LOGO as the primary
+criterion and including the Stage B threshold-tuning setup, the same pattern
+did not hold.
+
+Best LOGO result for each representation:
+
+| Representation | Best setup | Threshold | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| C1: Morgan only | B5: class weight + threshold tuning | 0.30 | **0.4858** | 0.3381 | **0.3451** | 0.3926 | **0.4130** | **0.8426** |
+| C2: RDKit descriptors only | B4: threshold tuning only | 0.45 | 0.4162 | 0.2909 | 0.2533 | 0.5521 | 0.2160 | 0.7860 |
+| C3: Morgan + RDKit | B4: threshold tuning only | 0.40 | 0.4547 | 0.3329 | 0.2994 | 0.5833 | 0.2598 | 0.8055 |
+
+The strongest interim result is that Morgan-only features currently perform
+best for unseen-drug generalization. C1 has the highest LOGO AUPRC, AUROC, F1,
+and recall among C1-C3. C3, the combined Morgan + RDKit representation, is
+still competitive and has higher precision than the best C1 ranking setup, but
+it does not improve LOGO ranking performance over Morgan alone in this run.
+
+If the primary goal is ranking discovery candidates, the current best C1-C3
+setup is:
+
+- C1: Morgan only + B5 class weight + threshold tuning, threshold 0.30
+
+If the primary goal is a more conservative thresholded decision with stronger
+MCC and precision, the best C1-C3 operating point is:
+
+- C1: Morgan only + B4 threshold tuning only, threshold 0.30-0.40
+  - LOGO MCC = 0.3617
+  - LOGO precision = 0.6042
+  - LOGO recall = 0.2780
+
+Interpretation:
+
+- RDKit descriptors alone are weaker than Morgan fingerprints.
+- Adding RDKit descriptors to Morgan fingerprints does not improve LOGO AUPRC
+  in this reproduction.
+- The descriptor block may be adding noise or overfitting risk in the small
+  LOGO setting, even though combined features were beneficial in the original
+  paper.
+- C1 should be carried forward as the strongest current representation, while
+  C3 should remain recorded as the direct comparison to the original paper's
+  combined-feature setup.
