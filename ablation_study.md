@@ -474,3 +474,65 @@ For scientific reporting, the main Stage C conclusion is that learned
 SMILES/embedding representations did not improve unseen-drug ranking over
 Morgan fingerprints. ChemBERTa was useful mainly as a thresholded-decision
 add-on to Morgan fingerprints.
+
+## Stage E: Model Comparison
+
+Stage E compares model families using the two feature setups selected from
+Stage C:
+
+1. Ranking setup:
+   - C1: Morgan only
+   - B5: class weight + threshold tuning
+2. Thresholded-decision setup:
+   - C7: Morgan + ChemBERTa
+   - B4: threshold tuning only
+
+The Stage E runner is:
+
+```bash
+python scripts/compare_stage_e_models.py
+```
+
+This evaluates:
+
+| Stage | Model |
+| --- | --- |
+| E1 | Random Forest |
+| E2 | ExtraTrees |
+| E3 | Logistic Regression |
+| E4 | Kernel SVM |
+| E5 | HistGradientBoosting |
+| E6 | XGBoost, if installed |
+| E7 | LightGBM, if installed |
+
+The default run uses:
+
+```bash
+python scripts/compare_stage_e_models.py \
+  --chemberta-file data/processed/chemberta_embeddings.csv
+```
+
+For a faster smoke test:
+
+```bash
+python scripts/compare_stage_e_models.py \
+  --models RandomForest KernelSVM \
+  --n-splits 2 \
+  --max-logo-folds 2
+```
+
+Results are written to `results/stage_e_models/`:
+
+- `stage_e_model_all_folds.csv`
+- `stage_e_model_summary.csv`
+- `stage_e_model_leaderboard.csv`
+
+Selection rule:
+
+- Use LOGO AUPRC as the primary criterion for ranking/discovery models.
+- Use LOGO MCC as the primary criterion for thresholded binary-decision models.
+- Treat CV as supporting evidence only.
+- If Kernel SVM has strong LOGO MCC but weak AUPRC, keep it only for
+  thresholded decisions.
+- If tree ensembles still dominate LOGO AUPRC, carry the best tree model into
+  final inference.

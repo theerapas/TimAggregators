@@ -4,13 +4,12 @@ A0: Morgan + RDKit + RF, no imbalance handling
 Stage B: Imbalance Handling
 B1: Class weight
 B2: Random oversampling
-B3: SMOTE / SMOTENC / cautious synthetic sampling
+B3: SMOTE
 B4: Threshold tuning only
 B5: Class weight + threshold tuning
-Pick top 1-2 methods based mainly on LOGO AUPRC/MCC.
+SMOTE-NC: optional appendix only; probably low priority.
 
 Stage C: Representations
-Using top imbalance method(s):
 C1: Morgan only
 C2: RDKit descriptors only
 C3: Morgan + RDKit
@@ -20,16 +19,27 @@ C6: Morgan + eos2lm8
 C7: Morgan + ChemBERTa
 C8: Morgan + RDKit + eos2lm8
 C9: Morgan + RDKit + ChemBERTa
+Carry forward:
+- Ranking: C1 + B5
+- Thresholded decision: C7 + B4
 
 Stage D: 3D / Optional Advanced Features
-D1: Morgan + RDKit + 3D descriptors
-D2: best embedding + 3D
-D3: best overall 2D feature set + 3D
+D1: Morgan only + 3D descriptors
+D2: Morgan + ChemBERTa + 3D descriptors
+D3: Morgan + RDKit + 3D descriptors
+Keep optional; skip if conformer generation becomes noisy.
 
 Stage E: Model Comparison
-Using best feature/imbalance setup:
-E1: Logistic Regression
-E2: Random Forest
-E3: ExtraTrees
-E4: XGBoost / LightGBM
-E5: calibrated versions if probability quality matters
+Using C1 and C7:
+E1: Random Forest
+E2: ExtraTrees
+E3: Logistic Regression
+E4: Kernel SVM
+E5: XGBoost / LightGBM
+E6: calibrated versions if probability quality matters
+
+Stage F: Graph Neural Networks / Advanced
+F1: pretrained graph embeddings + pair classifier
+F2: simple pair GNN
+F3: best GNN vs best tabular model
+Only do after Stage E.
