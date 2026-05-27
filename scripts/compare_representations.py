@@ -96,6 +96,23 @@ REPRESENTATIONS = {
         components=("morgan", "rdkit"),
         embeddings=("chemberta",),
     ),
+    "C10_unimap": RepresentationSpec(
+        name="C10_unimap",
+        stage="C10",
+        embeddings=("unimap",),
+    ),
+    "C11_morgan_unimap": RepresentationSpec(
+        name="C11_morgan_unimap",
+        stage="C11",
+        components=("morgan",),
+        embeddings=("unimap",),
+    ),
+    "C12_morgan_rdkit_unimap": RepresentationSpec(
+        name="C12_morgan_rdkit_unimap",
+        stage="C12",
+        components=("morgan", "rdkit"),
+        embeddings=("unimap",),
+    ),
 }
 
 METHODS = {
@@ -140,6 +157,12 @@ def parse_args():
         type=pathlib.Path,
         default=None,
         help="Optional CSV/TSV embedding file keyed by molecule name for C5/C7/C9.",
+    )
+    parser.add_argument(
+        "--unimap-file",
+        type=pathlib.Path,
+        default=None,
+        help="Optional CSV/TSV embedding file keyed by molecule name for C10/C11/C12.",
     )
     parser.add_argument(
         "--embedding-key-col",
@@ -200,6 +223,8 @@ def load_embedding_tables(args):
         tables["chemberta"] = read_embedding_file(
             args.chemberta_file, args.embedding_key_col
         )
+    if args.unimap_file is not None:
+        tables["unimap"] = read_embedding_file(args.unimap_file, args.embedding_key_col)
     return tables
 
 

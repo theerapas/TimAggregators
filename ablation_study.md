@@ -156,14 +156,80 @@ Current built-in representations:
 | C7 | Morgan + ChemBERTa |
 | C8 | Morgan + RDKit + eos2lm8 |
 | C9 | Morgan + RDKit + ChemBERTa |
+| C10 | UniMAP |
+| C11 | Morgan + UniMAP |
+| C12 | Morgan + RDKit + UniMAP |
 
-<!-- C1-C3 run from the existing SMILES data. C4-C9 require external embedding
-tables and are skipped unless the corresponding files are provided:
+C1-C3 run from the existing SMILES data. C4-C12 require external embedding
+tables and are skipped unless the corresponding files are provided.
+
+Create the molecule input table for external embedding tools:
+
+```bash
+python scripts/make_embedding_input.py
+```
+
+This writes:
+
+```text
+data/processed/stage_c_molecules.csv
+```
+
+with columns:
+
+```text
+NAME,SMILES,Source
+```
+
+The external embedding output must then be normalized to one row per molecule:
+
+```text
+NAME,emb_0000,emb_0001,emb_0002,...
+```
+
+If an embedding tool outputs molecule names directly, normalize it with:
+
+```bash
+python scripts/normalize_embedding_table.py \
+  --input path/to/raw_embedding_output.csv \
+  --output data/processed/model_embeddings.csv \
+  --key-col NAME \
+  --prefix emb
+```
+
+If an embedding tool outputs SMILES but not names, normalize it with:
+
+```bash
+python scripts/normalize_embedding_table.py \
+  --input path/to/raw_embedding_output.csv \
+  --output data/processed/model_embeddings.csv \
+  --smiles-col SMILES \
+  --prefix emb
+```
+
+Run embedding-based Stage C after the embedding CSVs exist:
 
 ```bash
 python scripts/compare_representations.py \
   --eos2lm8-file data/processed/eos2lm8_embeddings.csv \
-  --chemberta-file data/processed/chemberta_embeddings.csv
+  --chemberta-file data/processed/chemberta_embeddings.csv \
+  --unimap-file data/processed/unimap_embeddings.csv
+```
+
+Use `--representations` to run a subset, for example:
+
+```bash
+python scripts/compare_representations.py \
+  --representations C4_eos2lm8 C6_morgan_eos2lm8 C8_morgan_rdkit_eos2lm8 \
+  --eos2lm8-file data/processed/eos2lm8_embeddings.csv
+```
+
+or:
+
+```bash
+python scripts/compare_representations.py \
+  --representations C10_unimap C11_morgan_unimap C12_morgan_rdkit_unimap \
+  --unimap-file data/processed/unimap_embeddings.csv
 ```
 
 Embedding files should be CSV or TSV files with a molecule key column named
@@ -175,7 +241,7 @@ Results are written to `results/representations/`:
 - `representation_all_folds.csv`
 - `representation_summary.csv`
 - `representation_leaderboard.csv`
-- `representation_skipped.csv`, when embedding-dependent stages are skipped -->
+- `representation_skipped.csv`, when embedding-dependent stages are skipped
 
 ## Stage C Partial Result: C1-C3
 
