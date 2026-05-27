@@ -115,6 +115,18 @@ REPRESENTATIONS = {
     ),
 }
 
+DEFAULT_REPRESENTATIONS = [
+    "C1_morgan_only",
+    "C2_rdkit_descriptors_only",
+    "C3_morgan_rdkit",
+    "C4_eos2lm8",
+    "C5_chemberta",
+    "C6_morgan_eos2lm8",
+    "C7_morgan_chemberta",
+    "C8_morgan_rdkit_eos2lm8",
+    "C9_morgan_rdkit_chemberta",
+]
+
 METHODS = {
     "B4_threshold_tuning_only": StageBMethod(
         name="B4_threshold_tuning_only",
@@ -135,7 +147,7 @@ def parse_args():
     parser.add_argument(
         "--representations",
         nargs="+",
-        default=list(REPRESENTATIONS),
+        default=DEFAULT_REPRESENTATIONS,
         choices=list(REPRESENTATIONS),
         help="Subset of Stage C representations to run.",
     )

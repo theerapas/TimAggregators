@@ -160,8 +160,11 @@ Current built-in representations:
 | C11 | Morgan + UniMAP |
 | C12 | Morgan + RDKit + UniMAP |
 
-C1-C3 run from the existing SMILES data. C4-C12 require external embedding
-tables and are skipped unless the corresponding files are provided.
+C1-C3 run from the existing SMILES data. C4-C9 require external embedding
+tables and are skipped unless the corresponding files are provided. C10-C12
+were added as optional UniMAP branches, but UniMAP was skipped for the final
+Stage C comparison because the available repository/checkpoint route was no
+longer usable.
 
 Create the molecule input table for external embedding tools:
 
@@ -212,8 +215,16 @@ Run embedding-based Stage C after the embedding CSVs exist:
 ```bash
 python scripts/compare_representations.py \
   --eos2lm8-file data/processed/eos2lm8_embeddings.csv \
-  --chemberta-file data/processed/chemberta_embeddings.csv \
-  --unimap-file data/processed/unimap_embeddings.csv
+  --chemberta-file data/processed/chemberta_embeddings.csv
+```
+
+For the final Stage C rerun, use:
+
+```bash
+python scripts/compare_representations.py \
+  --representations C1_morgan_only C2_rdkit_descriptors_only C3_morgan_rdkit C4_eos2lm8 C5_chemberta C6_morgan_eos2lm8 C7_morgan_chemberta C8_morgan_rdkit_eos2lm8 C9_morgan_rdkit_chemberta \
+  --eos2lm8-file data/processed/eos2lm8_embeddings.csv \
+  --chemberta-file data/processed/chemberta_embeddings.csv
 ```
 
 Use `--representations` to run a subset, for example:
@@ -232,6 +243,23 @@ python scripts/compare_representations.py \
   --unimap-file data/processed/unimap_embeddings.csv
 ```
 
+ChemBERTa/ChemBERTa-2 embeddings can be generated locally with:
+
+```bash
+pip install torch transformers
+python scripts/generate_chemberta_embeddings.py \
+  --model-name DeepChem/ChemBERTa-77M-MTR \
+  --output data/processed/chemberta_embeddings.csv
+```
+
+Then run:
+
+```bash
+python scripts/compare_representations.py \
+  --representations C5_chemberta C7_morgan_chemberta C9_morgan_rdkit_chemberta \
+  --chemberta-file data/processed/chemberta_embeddings.csv
+```
+
 Embedding files should be CSV or TSV files with a molecule key column named
 `NAME` by default, plus numeric embedding columns. Use `--embedding-key-col` if
 the key column has a different name.
@@ -245,8 +273,7 @@ Results are written to `results/representations/`:
 
 ## Stage C Partial Result: C1-C3
 
-Stage C is not complete yet because the embedding-based representations
-C4-C9 have not been evaluated. However, the first representation comparison
+The first representation comparison
 was run for the two original paper feature types:
 
 - C1: Morgan fingerprint only
@@ -297,3 +324,153 @@ Interpretation:
 - C1 should be carried forward as the strongest current representation, while
   C3 should remain recorded as the direct comparison to the original paper's
   combined-feature setup.
+
+## Stage C Partial Result: eos2lm8
+
+The eos2lm8 representation was evaluated for:
+
+- C4: eos2lm8 only
+- C6: Morgan fingerprint + eos2lm8
+- C8: Morgan fingerprint + RDKit descriptors + eos2lm8
+
+Best LOGO result for each eos2lm8 representation:
+
+| Representation | Best setup | Threshold | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| C4: eos2lm8 only | B4: threshold tuning only | 0.45 | 0.4369 | 0.3476 | 0.3216 | 0.5833 | 0.2702 | 0.8025 |
+| C6: Morgan + eos2lm8 | B5: class weight + threshold tuning | 0.40 | 0.4373 | **0.3528** | 0.3220 | **0.6042** | 0.2702 | **0.8152** |
+| C8: Morgan + RDKit + eos2lm8 | B4: threshold tuning only | 0.45 | **0.4380** | 0.3476 | 0.3216 | 0.5833 | 0.2702 | 0.8101 |
+
+The best eos2lm8 LOGO AUPRC is C8 at 0.4380, which is slightly higher than
+C4 and C6 but still lower than the previous C3 Morgan + RDKit result
+of 0.4547 and lower than the C1 Morgan-only result of 0.4858. The best
+eos2lm8 MCC is C4/B5 at 0.3549, slightly below the previous best C1/B4 MCC of
+0.3617.
+
+Interpretation:
+
+- eos2lm8 contains real signal: eos2lm8-only performs better than RDKit-only
+  on LOGO AUPRC from the C1-C3 run.
+- Adding eos2lm8 to Morgan features does not improve LOGO AUPRC over Morgan
+  alone.
+- Adding both RDKit descriptors and eos2lm8 to Morgan gives the best eos2lm8
+  AUPRC, but the gain over eos2lm8-only is very small.
+- The current best Stage C representation remains C1: Morgan only.
+- eos2lm8 should be recorded as tested but should not replace Morgan-only for
+  the next stage unless later ChemBERTa or UniMAP results change the overall
+  representation decision.
+
+## Stage C Partial Result: ChemBERTa
+
+ChemBERTa embeddings were evaluated for:
+
+- C5: ChemBERTa only
+- C7: Morgan fingerprint + ChemBERTa
+- C9: Morgan fingerprint + RDKit descriptors + ChemBERTa
+
+The latest files in `results/representations/` contain this ChemBERTa run.
+They overwrite the eos2lm8 result files, so the C1-C3 and eos2lm8 values above
+are kept in this document for comparison.
+
+Best LOGO result for each ChemBERTa representation:
+
+| Representation | Best setup | Threshold | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| C5: ChemBERTa only | B5: class weight + threshold tuning | 0.35 | 0.3956 | 0.3385 | 0.3211 | 0.5354 | 0.2884 | 0.7909 |
+| C7: Morgan + ChemBERTa | B4: threshold tuning only | 0.40 | **0.4362** | **0.3709** | **0.3429** | **0.5833** | **0.3171** | **0.8152** |
+| C9: Morgan + RDKit + ChemBERTa | B5: class weight + threshold tuning | 0.35 | 0.4295 | 0.3433 | 0.3303 | 0.5281 | 0.2988 | 0.8117 |
+
+ChemBERTa alone is weaker than Morgan-only, Morgan + RDKit, and eos2lm8 on
+LOGO AUPRC. However, adding ChemBERTa to Morgan fingerprints gives a useful
+thresholded-decision improvement. C7 reaches LOGO MCC = 0.3709, which is higher
+than the previous best C1 Morgan-only MCC of 0.3617.
+
+The best ChemBERTa LOGO AUPRC is C7 at 0.4362. This is lower than:
+
+- C1: Morgan only, AUPRC = 0.4858
+- C3: Morgan + RDKit, AUPRC = 0.4547
+- C8: Morgan + RDKit + eos2lm8, AUPRC = 0.4380
+
+Interpretation:
+
+- ChemBERTa contains useful complementary information for thresholded
+  classification when combined with Morgan fingerprints.
+- ChemBERTa does not improve candidate ranking over Morgan-only in LOGO.
+- ChemBERTa-only is relatively weak for this dataset, suggesting that the
+  learned SMILES embedding alone does not capture enough of the co-aggregation
+  signal.
+- Adding RDKit descriptors to Morgan + ChemBERTa does not help; C9 is worse
+  than C7 on AUPRC, MCC, F1, recall, and AUROC.
+- Current Stage C ranking conclusion remains C1: Morgan only.
+- Current Stage C thresholded-decision conclusion is C7: Morgan + ChemBERTa,
+  threshold 0.40, because it has the best LOGO MCC observed so far.
+
+## Stage C Final Result
+
+Stage C was rerun as a unified comparison across C1-C9 after eos2lm8 and
+ChemBERTa embeddings were generated. UniMAP was excluded because the available
+repository/checkpoint route was no longer usable.
+
+The final evaluated representations were:
+
+| Stage | Representation |
+| --- | --- |
+| C1 | Morgan only |
+| C2 | RDKit descriptors only |
+| C3 | Morgan + RDKit |
+| C4 | eos2lm8 |
+| C5 | ChemBERTa |
+| C6 | Morgan + eos2lm8 |
+| C7 | Morgan + ChemBERTa |
+| C8 | Morgan + RDKit + eos2lm8 |
+| C9 | Morgan + RDKit + ChemBERTa |
+
+Best LOGO ranking result for each representation, sorted by LOGO AUPRC:
+
+| Representation | Best setup | Threshold | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| C1: Morgan only | B5: class weight + threshold tuning | 0.30 | **0.4858** | 0.3381 | **0.3451** | 0.3926 | **0.4130** | **0.8426** |
+| C3: Morgan + RDKit | B4: threshold tuning only | 0.40 | 0.4547 | 0.3329 | 0.2994 | 0.5833 | 0.2598 | 0.8055 |
+| C8: Morgan + RDKit + eos2lm8 | B4: threshold tuning only | 0.45 | 0.4380 | 0.3476 | 0.3216 | 0.5833 | 0.2702 | 0.8101 |
+| C6: Morgan + eos2lm8 | B5: class weight + threshold tuning | 0.40 | 0.4373 | 0.3528 | 0.3220 | **0.6042** | 0.2702 | 0.8152 |
+| C4: eos2lm8 only | B4: threshold tuning only | 0.45 | 0.4369 | 0.3476 | 0.3216 | 0.5833 | 0.2702 | 0.8025 |
+| C7: Morgan + ChemBERTa | B4: threshold tuning only | 0.40 | 0.4362 | **0.3709** | 0.3429 | 0.5833 | 0.3171 | 0.8152 |
+| C9: Morgan + RDKit + ChemBERTa | B5: class weight + threshold tuning | 0.35 | 0.4295 | 0.3433 | 0.3303 | 0.5281 | 0.2988 | 0.8117 |
+| C2: RDKit descriptors only | B4: threshold tuning only | 0.45 | 0.4162 | 0.2909 | 0.2533 | 0.5521 | 0.2160 | 0.7860 |
+| C5: ChemBERTa only | B5: class weight + threshold tuning | 0.35 | 0.3956 | 0.3385 | 0.3211 | 0.5354 | 0.2884 | 0.7909 |
+
+Top LOGO MCC result:
+
+| Representation | Setup | Threshold | MCC | AUPRC | F1 | Precision | Recall | AUROC |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| C7: Morgan + ChemBERTa | B4: threshold tuning only | 0.40 | **0.3709** | 0.4362 | 0.3429 | 0.5833 | 0.3171 | 0.8152 |
+
+Final Stage C interpretation:
+
+- Morgan fingerprints remain the strongest representation for LOGO ranking.
+  C1 has the highest LOGO AUPRC and AUROC among all C1-C9 setups.
+- The original-paper feature combination, C3 Morgan + RDKit, is still the
+  second-best ranking representation, but it does not outperform Morgan alone
+  in this reproduction.
+- RDKit descriptors alone are weak, and adding RDKit descriptors to learned
+  embeddings does not clearly help.
+- eos2lm8 contains useful signal, but neither eos2lm8 alone nor Morgan +
+  eos2lm8 improves over Morgan-only ranking.
+- ChemBERTa alone is weak for ranking, but Morgan + ChemBERTa gives the best
+  threshold-dependent MCC.
+
+Decision for the next stage:
+
+- Carry forward C1 + B5 when ranking candidate pairs is the priority.
+  - Representation: Morgan only
+  - Imbalance setup: class weight + threshold tuning
+  - Operating threshold for best F1/AUPRC row: 0.30
+- Carry forward C7 + B4 when a single binary decision threshold is the priority.
+  - Representation: Morgan + ChemBERTa
+  - Imbalance setup: threshold tuning only
+  - Operating threshold: 0.40
+
+For scientific reporting, the main Stage C conclusion is that learned
+SMILES/embedding representations did not improve unseen-drug ranking over
+Morgan fingerprints. ChemBERTa was useful mainly as a thresholded-decision
+add-on to Morgan fingerprints.
