@@ -536,3 +536,79 @@ Selection rule:
   thresholded decisions.
 - If tree ensembles still dominate LOGO AUPRC, carry the best tree model into
   final inference.
+
+## Stage E Result: Model Comparison
+
+Stage E compared seven model families on the two Stage C carry-forward feature
+setups:
+
+- Ranking setup: C1 Morgan only + B5 class weight
+- Thresholded-decision setup: C7 Morgan + ChemBERTa + B4 no class weighting
+
+The evaluated models were:
+
+- Random Forest
+- ExtraTrees
+- Logistic Regression
+- Kernel SVM
+- HistGradientBoosting
+- XGBoost
+- LightGBM
+
+Best LOGO ranking result for each model on C1 + B5, sorted by LOGO AUPRC:
+
+| Model | Threshold | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Random Forest | 0.30 | **0.4858** | 0.3381 | 0.3451 | 0.3926 | **0.4130** | **0.8426** |
+| XGBoost | 0.85 | 0.4829 | 0.3084 | 0.2823 | 0.5438 | 0.2494 | 0.8242 |
+| Logistic Regression | 0.85 | 0.4789 | **0.3602** | **0.3582** | 0.4740 | 0.3661 | 0.8274 |
+| ExtraTrees | 0.35 | 0.4623 | 0.3285 | 0.3386 | 0.3830 | 0.4040 | 0.8253 |
+| LightGBM | 0.85 | 0.4623 | 0.3193 | 0.2919 | **0.5677** | 0.2464 | 0.8138 |
+| Kernel SVM | 0.35 | 0.4620 | 0.3536 | 0.3459 | 0.5156 | 0.3156 | 0.8208 |
+| HistGradientBoosting | 0.85 | 0.4445 | 0.2722 | 0.2546 | 0.4479 | 0.2393 | 0.8085 |
+
+Best LOGO thresholded-decision result for each model on C7 + B4, sorted by
+LOGO MCC:
+
+| Model | Threshold | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Random Forest | 0.40 | 0.4362 | **0.3709** | **0.3429** | 0.5833 | **0.3171** | 0.8152 |
+| Logistic Regression | 0.40 | **0.4754** | 0.3691 | 0.3366 | **0.6250** | 0.2780 | **0.8332** |
+| Kernel SVM | 0.30 | 0.4391 | 0.3691 | 0.3366 | **0.6250** | 0.2780 | 0.8167 |
+| ExtraTrees | 0.35 | 0.4334 | 0.3466 | 0.3201 | 0.5573 | 0.2962 | 0.8134 |
+| LightGBM | 0.05 | 0.3954 | 0.3046 | 0.3029 | 0.4323 | 0.2947 | 0.8105 |
+| XGBoost | 0.20 | 0.4102 | 0.3003 | 0.2922 | 0.4490 | 0.2884 | 0.8224 |
+| HistGradientBoosting | 0.05 | 0.3902 | 0.2702 | 0.2854 | 0.3609 | 0.3030 | 0.8173 |
+
+Interpretation:
+
+- Random Forest remains the best model for the ranking/discovery setup. It has
+  the highest LOGO AUPRC and AUROC on C1 Morgan-only features.
+- XGBoost comes close on LOGO AUPRC, but it does not exceed Random Forest and
+  has weaker MCC/F1 at its best ranking row.
+- Logistic Regression is the best balanced alternative for C1: it has slightly
+  lower AUPRC than Random Forest but higher MCC and F1.
+- Kernel SVM is competitive but does not beat Random Forest for ranking or
+  Logistic Regression for probability/ranking quality.
+- For thresholded decisions on C7, Random Forest has the highest MCC, but
+  Logistic Regression is nearly tied on MCC and has much better AUPRC, AUROC,
+  and precision.
+
+Final Stage E decision:
+
+- Use Random Forest on C1 Morgan-only + B5 for ranking candidate pairs.
+  - Threshold 0.30 if a threshold is needed.
+  - This remains the main discovery model.
+- Use Logistic Regression on C7 Morgan + ChemBERTa + B4 for conservative
+  thresholded decisions.
+  - Threshold 0.40-0.50 performs similarly.
+  - This is preferred over Random Forest for the C7 decision setup because it
+    preserves nearly the same MCC while improving AUPRC, AUROC, and precision.
+
+Next step:
+
+- Move to final model packaging/inference using the selected ranking model, or
+  optionally run a small calibration check if probability quality matters for
+  downstream candidate prioritization.
+- Keep 3D descriptors and GNNs as optional advanced extensions, not required
+  for the main ablation conclusion.
