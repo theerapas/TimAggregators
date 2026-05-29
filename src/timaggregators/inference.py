@@ -14,6 +14,7 @@ def load_feature_table(
     sep: str = "\t",
     exclude_names: set[str] | None = None,
     desc: str = "Loading molecules",
+    feature_components=None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Reads a NAME/SMILES table and returns:
@@ -39,7 +40,7 @@ def load_feature_table(
         names.append(name)
         features.append(feats)
 
-    feature_names = get_feature_names()
+    feature_names = get_feature_names(feature_components)
     
     if not features:
         return np.array([], dtype=object), np.empty((0, len(feature_names)), dtype=np.float64)

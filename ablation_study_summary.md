@@ -271,8 +271,8 @@ conclusion.
 Reasonable next extensions:
 
 - Add a calibration stage for the selected final models.
-- Train the final Random Forest on all available labeled data and refresh
-  candidate inference.
+- Run the final model workflow to create refreshed screening outputs:
+  `scripts/train_final_model.py`, then `scripts/run_final_inference.py`.
 - Try RDKit 3D descriptors as a small appendix:
   - Morgan only + 3D descriptors
   - Morgan + ChemBERTa + 3D descriptors
@@ -288,6 +288,8 @@ Main result directories:
 - `results/imbalance/`
 - `results/representations/`
 - `results/stage_e_models/`
+- `results/final_model/` after running final training
+- `results/final_inference/` after running final inference
 
 Embedding/intermediate files:
 
@@ -305,3 +307,5 @@ New scripts used for the ablation:
 - `scripts/normalize_embedding_table.py`
 - `scripts/generate_chemberta_embeddings.py`
 - `scripts/compare_stage_e_models.py`
+- `scripts/train_final_model.py`
+- `scripts/run_final_inference.py`

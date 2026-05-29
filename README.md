@@ -1,39 +1,13 @@
-# TimAggregators (Tim's implementation of CoAggregators)
+# TimAggregators
 
-Machine learning pipeline to predict drug–excipient co-aggregation and screen nanoparticle candidates.
+Machine learning pipeline for predicting drug-excipient co-aggregation and screening possible nanoparticle candidates.
 
----
+This repository has two separated parts:
 
-## Overview
+1. **Baseline reproduction** - the original implementation path using Morgan fingerprints + RDKit descriptors with a Random Forest.
+2. **Improvement study** - the ablation work that tests imbalance handling, molecular representations, and model families, then defines an improved final screening model.
 
-This project reproduces and extends the computational pipeline from:
-
-**Reker et al., Nature Nanotechnology (2021)**  
-[_Computationally guided high-throughput design of self-assembling drug nanoparticles_ ](https://doi.org/10.1038/s41565-021-00870-y)
-
-The goal is to:
-
-- Train and evaluate models to predict co-aggregation between drugs and excipients
-- Compare multiple machine learning models for both cross-validation and unseen-drug generalization
-- Perform large-scale screening (~2.1 million pairs)
-- Identify promising nanoparticle candidates for drug delivery
-
----
-
-## Features
-
-- Morgan fingerprint (radius=4, 2048 bits) + RDKit descriptors
-- Random Forest classifier (500 trees)
-- Evaluation:
-  - 10-fold cross-validation
-  - Leave-One-Drug-Out (LOGO)
-- Large-scale inference:
-  - DrugBank self-aggregating drugs
-  - GRAS/IIG excipients
-  - Approved DrugBank small molecules
-- Screening of ~2.1M candidate pairs
-
----
+For the main results and interpretation, see [summary.md](summary.md).
 
 ## Setup
 
@@ -42,134 +16,157 @@ conda env create -f environment.yml
 conda activate nanoparticle-env
 ```
 
-## Run
+## Part 1: Baseline Reproduction
 
-Train model:
+The baseline reproduces the first version of the pipeline:
+
+- Features: Morgan fingerprint, radius 4, 2048 bits, plus RDKit descriptors
+- Model: Random Forest, 500 trees
+- Evaluation: 10-fold cross-validation and leave-one-drug-out validation
+- Screening threshold: 0.2 in the inference script
+
+Run baseline training and evaluation:
 
 ```bash
 python scripts/train_baseline.py
 ```
 
-Run inference (~2.1M pairs):
+Run baseline large-scale inference:
 
 ```bash
 python scripts/run_inference.py
 ```
 
----
+Baseline outputs:
 
-## Scripts
+- `results/random_forest/`
+- `results/inference/`
 
-### scripts/train_baseline.py
+Baseline performance summary:
 
-- Load screening dataset
-- Extract molecular features
-- Train Random Forest model
-- Run:
-  - 10-fold CV
-  - Leave-One-Drug-Out
-- Save:
-  - model (nanoparticle_rf_model.pkl)
-  - evaluation results
+- `summary.md`
 
-### scripts/run_inference.py
+## Part 2: Improvement Study
 
-- Load trained model
-- Compute features for:
-  - candidate drugs
-  - candidate excipients
-- Generate all pair combinations
-- Predict probability
-- Filter by threshold (default = 0.2)
-- Save ranked candidates to `predicted_nanoparticle_candidates.csv`
+The improvement work is the ablation study. It asks which changes improve unseen-drug generalization under leave-one-drug-out validation.
 
-### scripts/compare_models.py
+Stages:
 
-- Run 10-fold CV and Leave-One-Drug-Out evaluations on different models
-- Save the output in `results/compare_models/`
+- Stage B: imbalance handling and threshold tuning
+- Stage C: molecular representation comparison
+- Stage E: model family comparison
 
-### scripts/visualize_results.py
+Main ablation scripts:
 
-- To visualize Random Forest, ExtraTrees, and Logistic Regression model with 10-Fold CV and LOGO
-- Plot the model's confidence as heatmap (`heatmap_{method}_{model}.png`) and their probability distributions (`prob_dist_{method}_{model}.png`).
-- Save the output in `results/figures/`
+```bash
+python scripts/compare_imbalance_methods.py
+python scripts/compare_representations.py --eos2lm8-file data/processed/eos2lm8_embeddings.csv --chemberta-file data/processed/chemberta_embeddings.csv
+python scripts/compare_stage_e_models.py
+```
 
----
+Improvement outputs:
 
-## Data
+- `results/imbalance/`
+- `results/representations/`
+- `results/stage_e_models/`
 
-Located in `data/raw/`
+Improvement notes and final ablation summary:
 
-#### Training data
+- `ablation_study.md`
+- `ablation_study_summary.md`
+- `Improvment Plan.txt`
 
-- `screening_data.tsv`: labeled drug–excipient pairs
-- `selected_drugs_smiles.tsv`: training drugs
-- `selected_excipients_smiles.tsv`: training excipients
+## Final Improved Model
 
-#### Inference data
+The selected final discovery model is:
 
-- `drugbank_selfaggs_smiles.tsv`: candidate drugs
-- `gras_iig.tsv`: GRAS/IIG excipients
-- `drugbank5_approved_names_smiles.tsv`: additional approved small molecules
+- Features: Morgan fingerprint only
+- Model: class-weighted Random Forest
+- Threshold: 0.30 when a binary cutoff is needed
+- Main LOGO result: AUPRC 0.4858, AUROC 0.8426
 
----
+Train the final improved model on all labeled data:
 
-## Results
+```bash
+python scripts/train_final_model.py
+```
 
-*** **_Full [performance analysis](summary.md) is in `summary.md`_** ***
+Run final improved screening:
 
-#### Random Forest model performance results located in `results/random_forest/`
+```bash
+python scripts/run_final_inference.py
+```
 
-- `cv_results_all_folds_t02.csv`: fold results (threshold 0.2)
-- `cv_results_all_folds_t05.csv`: fold results (threshold 0.5)
-- `cv_results_summary_t02.csv`: cross validation results summary (threshold 0.2)
-- `cv_results_summary_t05.csv`: cross validation results summary (threshold 0.5)
-- `logo_results_*`: leave-one-drug-out results
-- `threshold_sweep_results.csv`: threshold comparison
+Create final comparison visualizations:
 
+```bash
+python scripts/visualize_final_comparison.py
+```
 
-#### Inference results located in `results/inference/`
+This uses LOGO predictions on the labeled high-throughput screening matrix. The large inference pool is unlabeled, so it cannot prove model quality by itself. To write optional old/new inference score summaries for candidate-list inspection:
 
-- `all_pair_scores.csv`: all ~2.1M pairs scores
-- `predicted_nanoparticle_candidates.csv`: all pairs that cross the 0.2 threshold
+```bash
+python scripts/visualize_final_comparison.py --include-inference-diagnostics
+```
 
-#### Model comparison results located in `results/compare_models/`
+Final improved outputs:
 
-- `multi_model_overall_summary.csv`
-- `multi_model_leaderboard.csv`
+- `results/final_model/improved_morgan_rf_model.pkl`
+- `results/final_model/improved_morgan_rf_metadata.json`
+- `results/final_inference/improved_all_pair_scores.csv`
+- `results/final_inference/improved_predicted_nanoparticle_candidates.csv`
+- `results/final_validation_visualizations/`
 
-#### Visualization for each model located in `results/figures/`
+Main validation visualization:
 
-- `heatmap_{method}_{model}.png`
-- `prob_dist_{method}_{model}.png`
----
+- `results/final_validation_visualizations/heatmap_logo_actual_old_new_style.png`
+- `results/final_validation_visualizations/logo_validation_curves_old_vs_new.png`
+
+The final inference script uses the metadata saved by `train_final_model.py`, so the feature setup and threshold stay tied to the trained model.
+
+## Main Result
+
+Baseline LOGO performance used Morgan + RDKit with Random Forest at threshold 0.50:
+
+| Setup | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline RF, Morgan + RDKit | 0.4547 | 0.3066 | 0.2660 | 0.5938 | 0.2160 | 0.8055 |
+
+Improved recommended setups:
+
+| Use case | Setup | Threshold | AUPRC | MCC | F1 | Precision | Recall | AUROC |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Candidate ranking / discovery | Morgan only + class-weighted Random Forest | 0.30 | 0.4858 | 0.3381 | 0.3451 | 0.3926 | 0.4130 | 0.8426 |
+| Conservative binary decision | Morgan + ChemBERTa + Logistic Regression | 0.40 | 0.4754 | 0.3691 | 0.3366 | 0.6250 | 0.2780 | 0.8332 |
+
+For screening, use the candidate ranking model unless you specifically need a stricter yes/no decision.
+
+## Folder Guide
+
+```text
+data/raw/                 Input datasets
+data/processed/           Embedding files and processed molecule tables
+scripts/                  Runnable training, ablation, embedding, and inference scripts
+src/timaggregators/       Shared feature, loading, model, evaluation, and inference code
+results/random_forest/    Baseline Random Forest results and model
+results/inference/        Baseline screening output
+results/imbalance/        Stage B ablation output
+results/representations/  Stage C ablation output
+results/stage_e_models/   Stage E ablation output
+results/final_model/      Final improved model artifacts, created after training
+results/final_inference/  Final improved screening output, created after inference
+```
 
 ## Notes
 
-- This implementation uses chemical descriptors only (no molecular dynamics features from the original paper)
-- Results may differ from the published study
-- Threshold = 0.2 is used for discovery (higher recall)
-- Based on current comparisons:
-  - Random Forest is a strong baseline
-  - ExtraTrees performs well for candidate ranking
-  - Logistic Regression generalizes well in Leave-One-Drug-Out evaluation
+- This is an independent implementation inspired by Reker et al., Nature Nanotechnology 2021.
+- The original paper included molecular dynamics features; this repository currently uses chemical structure features and optional learned SMILES embeddings.
+- UniMAP was skipped because the available repository/checkpoint route was not usable during this study.
+- 3D descriptors and graph neural networks are future extensions, not part of the completed main ablation.
 
-## Disclaimer
+## Citation
 
-This repository is an independent implementation inspired by:
-
-`Reker et al., Nature Nanotechnology 2021.`
-
-This project is not the original code from the authors.
-All credit for the original methodology and dataset belongs to the authors.
-
-Please refer to the original publication for scientific details and validation.
-
-### Citation
-
-If you use this work, please cite:
-
-```
+```text
 Reker, D., et al. (2021).
 Computationally guided high-throughput design of self-assembling drug nanoparticles.
 Nature Nanotechnology.

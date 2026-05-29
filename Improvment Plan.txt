@@ -1,5 +1,11 @@
-Stage A: Baseline
-A0: Morgan + RDKit + RF, no imbalance handling
+Part 1: Baseline Reproduction
+A0: Morgan + RDKit + Random Forest
+Status: kept as the reference workflow.
+Scripts:
+- scripts/train_baseline.py
+- scripts/run_inference.py
+
+Part 2: Improvement Study
 
 Stage B: Imbalance Handling
 B1: Class weight
@@ -7,7 +13,7 @@ B2: Random oversampling
 B3: SMOTE
 B4: Threshold tuning only
 B5: Class weight + threshold tuning
-SMOTE-NC: optional appendix only; probably low priority.
+Result: threshold tuning helped binary metrics; class weighting helped the final ranking model.
 
 Stage C: Representations
 C1: Morgan only
@@ -19,27 +25,36 @@ C6: Morgan + eos2lm8
 C7: Morgan + ChemBERTa
 C8: Morgan + RDKit + eos2lm8
 C9: Morgan + RDKit + ChemBERTa
-Carry forward:
-- Ranking: C1 + B5
-- Thresholded decision: C7 + B4
+Skipped: UniMAP, because the repository/checkpoint route was unusable.
+Result:
+- Best ranking representation: C1 Morgan only
+- Best conservative decision representation: C7 Morgan + ChemBERTa
 
 Stage D: 3D / Optional Advanced Features
 D1: Morgan only + 3D descriptors
 D2: Morgan + ChemBERTa + 3D descriptors
 D3: Morgan + RDKit + 3D descriptors
-Keep optional; skip if conformer generation becomes noisy.
+Status: future work.
 
 Stage E: Model Comparison
-Using C1 and C7:
 E1: Random Forest
 E2: ExtraTrees
 E3: Logistic Regression
 E4: Kernel SVM
 E5: XGBoost / LightGBM
-E6: calibrated versions if probability quality matters
+Result:
+- Best ranking model: Morgan only + class-weighted Random Forest
+- Best conservative decision model: Morgan + ChemBERTa + Logistic Regression
 
-Stage F: Graph Neural Networks / Advanced
-F1: pretrained graph embeddings + pair classifier
-F2: simple pair GNN
-F3: best GNN vs best tabular model
-Only do after Stage E.
+Final Workflow
+Train final improved model:
+- python scripts/train_final_model.py
+
+Run final improved inference:
+- python scripts/run_final_inference.py
+
+Future Work
+F1: probability calibration
+F2: RDKit 3D descriptors
+F3: pretrained graph embeddings
+F4: graph neural network

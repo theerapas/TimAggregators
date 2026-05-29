@@ -1,0 +1,19 @@
+{
+  "name": "improved_morgan_rf",
+  "purpose": "final_discovery_ranking",
+  "model": "RandomForestClassifier",
+  "n_estimators": 500,
+  "random_state": 42,
+  "class_weight": "balanced",
+  "feature_components": [
+    "morgan"
+  ],
+  "threshold": 0.3,
+  "training_rows": 1440,
+  "feature_columns": 4096,
+  "class_counts": {
+    "0": 1346,
+    "1": 94
+  },
+  "selection_rationale": "Stage E selected this as the best LOGO ranking/discovery model: Morgan-only features, class-weighted Random Forest, LOGO AUPRC 0.4858."
+}
